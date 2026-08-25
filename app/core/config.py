@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     )
 
     # ── Google AI ─────────────────────────────────────────────────────────────
-    gemini_api_key: str = Field(..., description="Gemini API key (AI Studio or Vertex)")
+    gemini_api_key: str = Field("", description="Gemini API key (AI Studio or Vertex)")
+    gcp_oauth_token: str | None = Field(None, description="GCP OAuth Token for Vertex AI")
     google_cloud_project: str | None = Field(None, description="GCP project for Vertex AI")
     google_application_credentials: str | None = Field(
         None, description="Path to service account JSON"
