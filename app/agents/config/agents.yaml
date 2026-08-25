@@ -1,0 +1,60 @@
+version: "1.0"
+
+agents:
+  scope_ingestion:
+    name: "ScopeIngestionAgent"
+    model: "gemini-3.5-flash"
+    description: "Parses HackerOne program policies and automatically configures in-scope targets & researcher headers"
+    temperature: 0.1
+    max_output_tokens: 2048
+    tools: []
+
+  recon:
+    name: "ReconAgent"
+    model: "gemini-3.5-flash"
+    description: "Performs active reconnaissance against authorized target"
+    temperature: 0.1
+    max_output_tokens: 2048
+    tools:
+      - "get_robots_txt"
+      - "get_sitemap"
+      - "scrape_links_and_forms"
+
+  attack_surface:
+    name: "AttackSurfaceAgent"
+    model: "gemini-3.5-flash"
+    description: "Synthesizes reconnaissance data into prioritized attack vectors"
+    temperature: 0.2
+    max_output_tokens: 2048
+    tools: []
+
+  hunter:
+    name: "HunterAgent"
+    model: "gemini-3.5-flash"
+    description: "Generates vulnerability hypotheses with structured validation test steps"
+    temperature: 0.3
+    max_output_tokens: 2048
+    tools: []
+
+  evidence_collector:
+    name: "EvidenceCollector"
+    type: "deterministic"
+    description: "Executes test steps deterministically with per-request scope enforcement"
+    timeout_seconds: 20
+
+  reviewer:
+    name: "ReviewAgent"
+    model: "gemini-3.5-flash"
+    description: "Strictly reviews hypothesis against observed evidence to prevent hallucinations"
+    temperature: 0.0
+    max_output_tokens: 1024
+    tools: []
+
+  reporter:
+    name: "ReportAgent"
+    model: "gemini-3.5-flash"
+    description: "Compiles validated findings into structured Markdown and JSON reports"
+    temperature: 0.2
+    max_output_tokens: 4096
+    tools: []
+

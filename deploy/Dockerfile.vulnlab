@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir flask==3.0.3 werkzeug==3.0.3
+
+COPY vuln_lab /app/vuln_lab
+
+ENV PORT=5000
+ENV FLASK_APP=vuln_lab.app:app
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 5000
+
+CMD ["python", "-m", "vuln_lab.app"]

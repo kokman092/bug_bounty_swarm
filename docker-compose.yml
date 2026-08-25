@@ -1,0 +1,69 @@
+services:
+  # ─── Firestore Emulator ────────────────────────────────────────────────────
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    command: >
+      gcloud emulators firestore start
+      --host-port=0.0.0.0:8080
+      --project=demo-bugbounty
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── BugBounty Swarm Backend ───────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      USE_FIRESTORE_EMULATOR: "true"
+      FIRESTORE_EMULATOR_HOST: "firestore-emulator:8080"
+      GCP_PROJECT_ID: "demo-bugbounty"
+      RUNNER_BASE_URL: "http://backend:8000"
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app:ro          # hot-reload source
+      - ./tests:/app/tests:ro
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ─── Vulnerable Lab (intentional target) ───────────────────────────────────
+  vuln_lab:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.vulnlab
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: development
+    # Isolated: only reachable from backend service, not from host internet
+    networks:
+      - internal
+      - default
+
+  # ─── Frontend (React dev server) ───────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8000"
+    volumes:
+      - ./frontend/src:/app/src:ro
+    depends_on:
+      - backend
+
+networks:
+  internal:
+    internal: true  # vuln_lab only reachable internally

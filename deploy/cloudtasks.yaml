@@ -1,0 +1,12 @@
+# Cloud Tasks Queue configuration
+# Apply with: gcloud tasks queues create investigations --location=us-central1 --max-dispatches-per-second=5 --max-concurrent-dispatches=5 --max-attempts=3 --min-backoff=10s --max-backoff=60s
+
+name: projects/YOUR_PROJECT_ID/locations/us-central1/queues/investigations
+rateLimits:
+  maxDispatchesPerSecond: 5
+  maxConcurrentDispatches: 5
+retryConfig:
+  maxAttempts: 3
+  minBackoff: 10s
+  maxBackoff: 60s
+  maxDoublings: 2

@@ -1,0 +1,274 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" style="background:#090d16; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#131b2e"/>
+      <stop offset="100%" stop-color="#0d1322"/>
+    </linearGradient>
+    <linearGradient id="gcpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="geminiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#311042"/>
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#38bdf8" flood-opacity="0.3"/>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#a855f7"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- Background Grid Pattern -->
+  <g opacity="0.06">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#38bdf8" stroke-width="1"/>
+    </pattern>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+  </g>
+
+  <!-- ── TOP HEADER BAR ── -->
+  <g transform="translate(60, 40)">
+    <text x="0" y="32" font-size="32" font-weight="800" fill="url(#headerGrad)" letter-spacing="-0.5">BUGBOUNTY SWARM</text>
+    <text x="350" y="30" font-size="16" font-weight="500" fill="#64748b">|</text>
+    <text x="375" y="30" font-size="16" font-weight="600" fill="#94a3b8">Autonomous Multi-Agent Vulnerability Verification Architecture</text>
+    
+    <!-- Badges -->
+    <g transform="translate(1120, 5)">
+      <rect x="0" y="0" width="160" height="32" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+      <circle cx="16" cy="16" r="5" fill="#10b981"/>
+      <text x="28" y="21" font-size="12" font-weight="700" fill="#f8fafc">Google Cloud Run</text>
+
+      <rect x="175" y="0" width="185" height="32" rx="16" fill="#1e1b4b" stroke="#4338ca" stroke-width="1"/>
+      <text x="190" y="21" font-size="12" font-weight="700" fill="#a5b4fc">Gemini 3.5 Flash Active</text>
+    </g>
+  </g>
+
+  <!-- ── GCP ENCLOSURE (MAIN FLEET CLOUD RUNTIME) ── -->
+  <g transform="translate(60, 100)">
+    <!-- Outer Container -->
+    <rect x="0" y="0" width="1480" height="740" rx="20" fill="url(#gcpGrad)" stroke="#1e293b" stroke-width="2" filter="url(#shadow)"/>
+    
+    <!-- GCP Header -->
+    <g transform="translate(30, 25)">
+      <!-- GCP Cloud Icon (Geometric Clean) -->
+      <path d="M 18 10 C 18 6 14 3 10 3 C 7 3 4.5 5 3.5 7.5 C 1.5 8 0 9.8 0 12 C 0 14.5 2 16.5 4.5 16.5 L 18 16.5 C 20.2 16.5 22 14.7 22 12.5 C 22 10.5 20.3 8.8 18 8.5" fill="none" stroke="#38bdf8" stroke-width="2" transform="scale(1.2)"/>
+      <text x="38" y="16" font-size="15" font-weight="700" fill="#f1f5f9" letter-spacing="0.5">GOOGLE CLOUD PLATFORM</text>
+      <text x="260" y="16" font-size="13" font-weight="600" fill="#64748b">REGION: us-central1 (Serverless Container Fleet)</text>
+    </g>
+
+    <!-- ── 1. TARGET INGESTION & GUARDRAIL ── -->
+    <g transform="translate(40, 70)">
+      <rect x="0" y="0" width="240" height="150" rx="12" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+      <rect x="0" y="0" width="240" height="36" rx="12" fill="#1e293b" opacity="0.6"/>
+      <text x="16" y="24" font-size="13" font-weight="700" fill="#38bdf8">1. TARGET &amp; POLICY</text>
+      
+      <text x="16" y="62" font-size="12" font-weight="600" fill="#f8fafc">Authorized Target URL</text>
+      <text x="16" y="80" font-size="11" font-family="monospace" fill="#94a3b8">https://api.target.com</text>
+      <text x="16" y="104" font-size="12" font-weight="600" fill="#f8fafc">Policy Rules &amp; Headers</text>
+      <text x="16" y="122" font-size="11" font-family="monospace" fill="#94a3b8">HackerOne Safe Harbor</text>
+    </g>
+
+    <!-- ── 4-LAYER SCOPE GUARDRAIL BOX ── -->
+    <g transform="translate(40, 240)">
+      <rect x="0" y="0" width="240" height="230" rx="12" fill="#0f172a" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 2"/>
+      <rect x="0" y="0" width="240" height="32" rx="12" fill="#450a0a" opacity="0.5"/>
+      <text x="14" y="22" font-size="12" font-weight="700" fill="#f87171">🛡️ 4-LAYER SCOPE GUARD</text>
+      
+      <text x="14" y="58" font-size="11" font-weight="600" fill="#fca5a5">1. URL Normalization</text>
+      <text x="14" y="74" font-size="10" fill="#94a3b8">Canonical path &amp; port validation</text>
+
+      <text x="14" y="102" font-size="11" font-weight="600" fill="#fca5a5">2. SSRF / Private IP Filter</text>
+      <text x="14" y="118" font-size="10" fill="#94a3b8">Blocks RFC 1918 (10.x, 192.168.x)</text>
+
+      <text x="14" y="146" font-size="11" font-weight="600" fill="#fca5a5">3. Cloud Metadata Barrier</text>
+      <text x="14" y="162" font-size="10" fill="#94a3b8">Blocks 169.254.169.254</text>
+
+      <text x="14" y="190" font-size="11" font-weight="600" fill="#fca5a5">4. DNS Rebinding Check</text>
+      <text x="14" y="206" font-size="10" fill="#94a3b8">Resolves IP before every socket</text>
+    </g>
+
+    <!-- ── AGENT 1: RECON AGENT ── -->
+    <g transform="translate(320, 70)">
+      <rect x="0" y="0" width="230" height="150" rx="12" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" filter="url(#glowBlue)"/>
+      <rect x="0" y="0" width="230" height="36" rx="12" fill="#0369a1" opacity="0.3"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#38bdf8">ReconAgent</text>
+      
+      <text x="14" y="60" font-size="11" font-weight="600" fill="#f8fafc">Active Surface Crawling</text>
+      <text x="14" y="78" font-size="10" fill="#94a3b8">• robots.txt &amp; sitemaps</text>
+      <text x="14" y="94" font-size="10" fill="#94a3b8">• HTML Form Extraction</text>
+      <text x="14" y="110" font-size="10" fill="#94a3b8">• Dynamic Route Discovery</text>
+      <rect x="14" y="124" width="105" height="18" rx="4" fill="#0284c7" opacity="0.3"/>
+      <text x="20" y="137" font-size="9" font-weight="700" fill="#38bdf8">Gemini 3.5 Flash</text>
+    </g>
+
+    <!-- ── AGENT 2: ATTACK SURFACE AGENT ── -->
+    <g transform="translate(590, 70)">
+      <rect x="0" y="0" width="230" height="150" rx="12" fill="url(#cardGrad)" stroke="#818cf8" stroke-width="1.5"/>
+      <rect x="0" y="0" width="230" height="36" rx="12" fill="#3730a3" opacity="0.3"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#a5b4fc">AttackSurfaceAgent</text>
+      
+      <text x="14" y="60" font-size="11" font-weight="600" fill="#f8fafc">Threat Prioritization</text>
+      <text x="14" y="78" font-size="10" fill="#94a3b8">• BOLA / IDOR Vectors</text>
+      <text x="14" y="94" font-size="10" fill="#94a3b8">• Multi-Tenant Auth Boundaries</text>
+      <text x="14" y="110" font-size="10" fill="#94a3b8">• Parameter Anomaly Scoring</text>
+      <rect x="14" y="124" width="105" height="18" rx="4" fill="#4338ca" opacity="0.3"/>
+      <text x="20" y="137" font-size="9" font-weight="700" fill="#a5b4fc">Gemini 3.5 Flash</text>
+    </g>
+
+    <!-- ── AGENT 3: HUNTER AGENT ── -->
+    <g transform="translate(860, 70)">
+      <rect x="0" y="0" width="260" height="150" rx="12" fill="url(#cardGrad)" stroke="#c084fc" stroke-width="1.5"/>
+      <rect x="0" y="0" width="260" height="36" rx="12" fill="#581c87" opacity="0.3"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#d8b4fe">HunterAgent (Adversarial)</text>
+      
+      <text x="14" y="60" font-size="11" font-weight="600" fill="#f8fafc">6-Phase Hypothesis Synthesis</text>
+      <text x="14" y="78" font-size="10" fill="#94a3b8">• Step 1 (Control): Owner Auth (Alice)</text>
+      <text x="14" y="94" font-size="10" fill="#94a3b8">• Step 2 (Test): Attacker Auth (Bob)</text>
+      <text x="14" y="110" font-size="10" fill="#94a3b8">• Rejects theoretical scanner noise</text>
+      <rect x="14" y="124" width="105" height="18" rx="4" fill="#6b21a8" opacity="0.3"/>
+      <text x="20" y="137" font-size="9" font-weight="700" fill="#d8b4fe">Gemini 3.5 Flash</text>
+    </g>
+
+    <!-- ── DETERMINISTIC EVIDENCE COLLECTOR (PYTHON CORE) ── -->
+    <g transform="translate(860, 270)">
+      <rect x="0" y="0" width="260" height="160" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="2" filter="url(#shadow)"/>
+      <rect x="0" y="0" width="260" height="36" rx="12" fill="#064e3b" opacity="0.4"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#34d399">⚡ EvidenceCollector (Deterministic)</text>
+      
+      <text x="14" y="60" font-size="11" font-weight="600" fill="#f8fafc">Non-LLM Socket Probe Engine</text>
+      <text x="14" y="78" font-size="10" fill="#94a3b8">• Executes Live HTTP Differential</text>
+      <text x="14" y="94" font-size="10" fill="#94a3b8">• Status, Body &amp; Headers Diffs</text>
+      <text x="14" y="110" font-size="10" fill="#94a3b8">• Cryptographic Proof Capture</text>
+      <rect x="14" y="130" width="150" height="18" rx="4" fill="#047857" opacity="0.3"/>
+      <text x="20" y="143" font-size="9" font-weight="700" fill="#34d399">ZERO HALLUCINATIONS</text>
+    </g>
+
+    <!-- ── AGENT 4: REVIEW AGENT (EVIDENCE GRAPH) ── -->
+    <g transform="translate(1160, 200)">
+      <rect x="0" y="0" width="280" height="230" rx="12" fill="url(#cardGrad)" stroke="#f59e0b" stroke-width="1.5"/>
+      <rect x="0" y="0" width="280" height="36" rx="12" fill="#78350f" opacity="0.4"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#fbbf24">ReviewAgent (Triage Judge)</text>
+      
+      <text x="14" y="58" font-size="11" font-weight="700" fill="#fde68a">5-Branch Evidence Graph (AEV v6)</text>
+      <text x="14" y="76" font-size="10" fill="#94a3b8">├── 1. Scope (Verified in-bounds)</text>
+      <text x="14" y="92" font-size="10" fill="#94a3b8">├── 2. Auth (Caller verified)</text>
+      <text x="14" y="108" font-size="10" fill="#94a3b8">├── 3. Access (Cross-tenant breach)</text>
+      <text x="14" y="124" font-size="10" fill="#94a3b8">├── 4. Impact (Exfiltration proven)</text>
+      <text x="14" y="140" font-size="10" fill="#94a3b8">└── 5. Reproducibility (Deterministic)</text>
+      
+      <text x="14" y="166" font-size="10" font-weight="600" fill="#f59e0b">Phase 6: 12-Question False-Positive Defense</text>
+      <text x="14" y="182" font-size="10" fill="#cbd5e1">Score &lt; 8/10 ➔ REJECT &amp; PIVOT</text>
+      
+      <rect x="14" y="198" width="105" height="18" rx="4" fill="#b45309" opacity="0.3"/>
+      <text x="20" y="211" font-size="9" font-weight="700" fill="#fde68a">Gemini + AEV v6</text>
+    </g>
+
+    <!-- ── AGENT 5: REPORT AGENT ── -->
+    <g transform="translate(1160, 480)">
+      <rect x="0" y="0" width="280" height="130" rx="12" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.5"/>
+      <rect x="0" y="0" width="280" height="36" rx="12" fill="#064e3b" opacity="0.3"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#34d399">ReportAgent (Publication)</text>
+      
+      <text x="14" y="60" font-size="11" font-weight="600" fill="#f8fafc">HackerOne / Bugcrowd Export</text>
+      <text x="14" y="78" font-size="10" fill="#94a3b8">• Reproducible curl PoC &amp; Evidence Tree</text>
+      <text x="14" y="94" font-size="10" fill="#94a3b8">• Root Cause &amp; Remediation Code</text>
+      <rect x="14" y="104" width="105" height="18" rx="4" fill="#047857" opacity="0.3"/>
+      <text x="20" y="117" font-size="9" font-weight="700" fill="#34d399">Gemini 3.5 Flash</text>
+    </g>
+
+    <!-- ── REJECT-AND-PIVOT FEEDBACK LOOP LINE ── -->
+    <path d="M 1160 310 L 1140 310 L 1140 180 L 1120 180" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+    <rect x="1060" y="220" width="110" height="22" rx="4" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+    <text x="1068" y="235" font-size="9" font-weight="700" fill="#fbbf24">REJECT ➔ PIVOT</text>
+
+    <!-- ── DATA STORE LAYER: FIRESTORE & FASTAPI ── -->
+    <g transform="translate(320, 270)">
+      <!-- Firestore Container -->
+      <rect x="0" y="0" width="500" height="160" rx="12" fill="#0b1120" stroke="#0284c7" stroke-width="1.5"/>
+      <rect x="0" y="0" width="500" height="34" rx="12" fill="#0369a1" opacity="0.3"/>
+      <text x="16" y="23" font-size="13" font-weight="700" fill="#38bdf8">💾 Google Cloud Firestore (State &amp; Memory Bank)</text>
+      
+      <!-- Columns inside Firestore box -->
+      <g transform="translate(16, 48)">
+        <text x="0" y="15" font-size="11" font-weight="600" fill="#f8fafc">1. Monotonic Event Sequence</text>
+        <text x="0" y="32" font-size="10" fill="#94a3b8">• Guaranteed event ordering (0..N)</text>
+        <text x="0" y="48" font-size="10" fill="#94a3b8">• Resilient SSE rehydration</text>
+      </g>
+      <g transform="translate(260, 48)">
+        <text x="0" y="15" font-size="11" font-weight="600" fill="#f8fafc">2. Persistent Finding Store</text>
+        <text x="0" y="32" font-size="10" fill="#94a3b8">• Multi-session deduplication</text>
+        <text x="0" y="48" font-size="10" fill="#94a3b8">• Complete cryptographic audit trail</text>
+      </g>
+      <rect x="16" y="125" width="468" height="22" rx="4" fill="#0c4a6e" opacity="0.4"/>
+      <text x="24" y="140" font-size="10" font-family="monospace" fill="#7dd3fc">FASTAPI RUNTIME: Asynchronous Task Dispatch &amp; SSE Gateway</text>
+    </g>
+
+    <!-- ── BOTTOM OBSERVABILITY & PRESENTATION LAYER (REACT UI) ── -->
+    <g transform="translate(40, 500)">
+      <rect x="0" y="0" width="1080" height="190" rx="14" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" filter="url(#shadow)"/>
+      <rect x="0" y="0" width="1080" height="36" rx="14" fill="#0369a1" opacity="0.25"/>
+      <text x="20" y="24" font-size="14" font-weight="700" fill="#38bdf8">🖥️ Real-Time Mission-Control Dashboard (React 18 + Vite + Tailwind CSS)</text>
+      
+      <g transform="translate(20, 55)">
+        <rect x="0" y="0" width="320" height="115" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+        <text x="14" y="24" font-size="12" font-weight="700" fill="#f8fafc">1. Live Agent Telemetry Feed</text>
+        <text x="14" y="46" font-size="11" fill="#94a3b8">• Resilient EventSource with Last-Event-ID</text>
+        <text x="14" y="66" font-size="11" fill="#94a3b8">• Live streaming agent debate logs</text>
+        <text x="14" y="86" font-size="11" fill="#94a3b8">• Zero-drop reconnection handling</text>
+      </g>
+
+      <g transform="translate(360, 55)">
+        <rect x="0" y="0" width="330" height="115" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+        <text x="14" y="24" font-size="12" font-weight="700" fill="#f8fafc">2. Interactive Finding Cards</text>
+        <text x="14" y="46" font-size="11" fill="#94a3b8">• Color-coded confidence &amp; severity</text>
+        <text x="14" y="66" font-size="11" fill="#94a3b8">• Expandable HTTP Evidence Inspector</text>
+        <text x="14" y="86" font-size="11" fill="#94a3b8">• Differential response side-by-side</text>
+      </g>
+
+      <g transform="translate(710, 55)">
+        <rect x="0" y="0" width="350" height="115" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+        <text x="14" y="24" font-size="12" font-weight="700" fill="#f8fafc">3. One-Click Triage Export</text>
+        <text x="14" y="46" font-size="11" fill="#94a3b8">• HackerOne markdown format</text>
+        <text x="14" y="66" font-size="11" fill="#94a3b8">• Automated reproduction curl scripts</text>
+        <text x="14" y="86" font-size="11" fill="#94a3b8">• Remediation guidance for dev teams</text>
+      </g>
+    </g>
+
+    <!-- ── CONNECTING FLOW ARROWS ── -->
+    <!-- 1 -> Recon -->
+    <path d="M 280 145 L 320 145" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)"/>
+    <!-- Recon -> Attack Surface -->
+    <path d="M 550 145 L 590 145" fill="none" stroke="#818cf8" stroke-width="2" marker-end="url(#arrowPurple)"/>
+    <!-- Attack Surface -> Hunter -->
+    <path d="M 820 145 L 860 145" fill="none" stroke="#c084fc" stroke-width="2" marker-end="url(#arrowPurple)"/>
+    <!-- Hunter -> Evidence Collector -->
+    <path d="M 990 220 L 990 270" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#arrowGreen)"/>
+    <!-- Evidence Collector -> Reviewer -->
+    <path d="M 1120 350 L 1160 350" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow)"/>
+    <!-- Reviewer -> Reporter -->
+    <path d="M 1300 430 L 1300 480" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+    <!-- Firestore to Dashboard Telemetry -->
+    <path d="M 570 430 L 570 500" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="6 3" marker-end="url(#arrow)"/>
+  </g>
+</svg>
