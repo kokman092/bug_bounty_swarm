@@ -166,3 +166,71 @@ async def scrape_links_and_forms(target_url: str, investigation_id: str) -> dict
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
+
+
+async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict[str, Any]:
+    """
+    Actively probe common REST API path prefixes to discover deep endpoints
+    not linked from the root page (e.g., /api/v2/, /api/admin/, /api/debug/).
+    """
+    base = normalize_url(target_url)
+    root = f"{base.scheme}://{base.host_with_port}"
+
+    # Common API paths to probe — covers versioned APIs, admin panels, debug endpoints
+    PROBE_PATHS = [
+        "/api",
+        "/api/v1",
+        "/api/v2",
+        "/api/v3",
+        "/api/admin",
+        "/api/debug",
+        "/api/debug/config",
+        "/api/users",
+        "/api/orders",
+        "/api/products",
+        "/api/products/search",
+        "/api/invoices",
+        "/api/integrations",
+        "/api/integrations/webhook/test",
+        "/api/users/profile",
+        "/api/v2/organizations",
+        "/api/v2/tenants",
+        "/api/v2/subscriptions",
+        "/api/documents",
+        "/api/support/tickets",
+        "/api/cloud/instances",
+        "/api/audit-logs",
+        "/api/test/reset-db",
+        "/swagger",
+        "/docs",
+        "/openapi.json",
+        "/.env",
+        "/health",
+        "/status",
+    ]
+
+    discovered = []
+    async with ScopeEnforcingHttpClient(investigation_id) as client:
+        for path in PROBE_PATHS:
+            probe_url = f"{root}{path}"
+            try:
+                resp = await client.get(probe_url)
+                if resp.status_code in (200, 201, 301, 302, 400, 405):
+                    body_preview = client.get_response_text_safe(resp)[:500]
+                    discovered.append({
+                        "path": path,
+                        "status_code": resp.status_code,
+                        "content_type": resp.headers.get("content-type", ""),
+                        "body_preview": body_preview,
+                    })
+                    logger.info("deep_probe_hit", path=path, status=resp.status_code)
+            except Exception as exc:
+                logger.debug("deep_probe_skip", path=path, error=str(exc))
+
+    return {
+        "status": "completed",
+        "probed_count": len(PROBE_PATHS),
+        "discovered_count": len(discovered),
+        "endpoints": discovered,
+    }
+

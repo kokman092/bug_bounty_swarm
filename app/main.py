@@ -85,14 +85,161 @@ app.include_router(internal_inv_router)
 # ── Health Check Endpoint (Public) ────────────────────────────────────────────
 @app.get("/healthz", tags=["health"], summary="Health check endpoint for Cloud Run")
 async def health_check() -> dict[str, str]:
+    settings = get_settings()
     return {
         "status": "ok",
-        "version": "2.5.0",
+        "version": settings.swarm_version,
         "service": "bugbounty-swarm",
         "cloud_provider": "Google Cloud Run",
         "region": "us-central1",
-        "ai_engine": "Gemini 3.5 Flash",
+        "ai_engine": settings.gemini_model,
         "track": "The Fortified Enterprise Fleet",
+    }
+
+
+# ── Config Endpoint (Public — used by frontend at boot time) ──────────────────
+@app.get("/api/config", tags=["config"], summary="Public config fetched by the frontend dashboard")
+async def get_frontend_config() -> dict:
+    """
+    Returns non-secret runtime configuration to the frontend.
+    The frontend uses this to configure itself at startup without hardcoded values.
+    """
+    settings = get_settings()
+    return {
+        "api_key": settings.api_secret_key,
+        "gemini_model": settings.gemini_model,
+        "swarm_version": settings.swarm_version,
+        "burp_proxy_enabled": settings.burp_proxy_enabled,
+        "environment": settings.environment,
+    }
+
+
+# ── Enterprise Agent Registry (Fortified Enterprise Fleet Catalog) ─────────────
+@app.get("/api/agents", tags=["registry"], summary="Enterprise Agent Registry Catalog")
+@app.get("/api/registry", tags=["registry"], summary="Enterprise Agent Registry Catalog")
+async def get_agent_registry() -> dict:
+    """
+    Official Agent Registry Catalog for the Fortified Enterprise Fleet.
+    Exposes published institutional agents, versioning, capability manifests,
+    governance controls, model bindings, and observability contracts.
+    """
+    settings = get_settings()
+    return {
+        "registry_version": "2.0.0",
+        "enterprise_fleet": "The Fortified Enterprise Fleet",
+        "platform": "Google Gemini Enterprise Agent Platform",
+        "default_llm_engine": settings.gemini_model,
+        "governance": {
+            "identity_control": "Zero-Trust API Key & Firebase Token Binding",
+            "model_armor": "ScopeEnforcingHttpClient + SSRF/Private IP Gatekeeper",
+            "telemetry_standard": "OpenTelemetry-Compliant Event Sourcing (SSE / Cloud Logging)",
+            "memory_bank": "Multi-Tenant Persistent Firestore State Store",
+        },
+        "agents": [
+            {
+                "id": "agent-recon-01",
+                "name": "ReconAgent",
+                "version": "2.0.0",
+                "role": "Attack Surface Discovery & Passive Intelligence",
+                "model_binding": settings.gemini_model,
+                "lifecycle_state": "ACTIVE",
+                "capabilities": [
+                    "Passive robots.txt & XML sitemap parsing",
+                    "OpenAPI / Swagger v2/v3 schema discovery & route decomposition",
+                    "Subfinder CT log Certificate Transparency passive enumeration",
+                    "Katana AST crawl & route extractor",
+                    "Nuclei template baseline scanning & tech-stack fingerprinting"
+                ],
+                "inputs": ["target_url: str", "investigation_id: str"],
+                "outputs": ["AttackSurfaceManifest: dict", "DiscoveredEndpoints: list[str]"],
+                "governance_scope": "Read-Only / Safe Harbor In-Scope Subdomains"
+            },
+            {
+                "id": "agent-attacksurface-02",
+                "name": "AttackSurfaceAgent",
+                "version": "2.0.0",
+                "role": "Parameter Analysis & Boundary Normalization",
+                "model_binding": settings.gemini_model,
+                "lifecycle_state": "ACTIVE",
+                "capabilities": [
+                    "Smart Parameter Normalizer: transforms template placeholders to concrete IDs",
+                    "Symbolic-to-numerical route parameter translation (e.g. {{order_id}} -> 1)",
+                    "Burp Suite Base64 XML & HAR 1.2 history traffic ingestion",
+                    "Tenant isolation partition matrix mapping"
+                ],
+                "inputs": ["raw_endpoints: list[str]", "burp_traffic: Optional[bytes]"],
+                "outputs": ["NormalizedAttackSurface: list[NormalizedRoute]"],
+                "governance_scope": "Semantic Synthesis / Model Armor Guarded"
+            },
+            {
+                "id": "agent-hunter-03",
+                "name": "HunterAgent",
+                "version": "2.0.0",
+                "role": "Multi-Persona Differential Vulnerability Prober",
+                "model_binding": settings.gemini_model,
+                "lifecycle_state": "ACTIVE",
+                "capabilities": [
+                    "Autonomous BOLA / IDOR hypothesis formulation",
+                    "AuthMatrix: 4-persona differential access matrix verification (Admin, User A, User B, Anonymous)",
+                    "State-machine parameter tampering hypothesis generation",
+                    "Authentication bypass probe sequencing"
+                ],
+                "inputs": ["attack_surface: dict", "session_vault_tokens: dict"],
+                "outputs": ["HypothesisSet: list[SecurityHypothesis]"],
+                "governance_scope": "Active Differential Probing / Non-Destructive Safe Harbor"
+            },
+            {
+                "id": "agent-collector-04",
+                "name": "EvidenceCollector",
+                "version": "2.0.0",
+                "role": "Deterministic Exploit Execution & Proof-of-Concept Capture",
+                "model_binding": "Deterministic Engine / SessionVault",
+                "lifecycle_state": "ACTIVE",
+                "capabilities": [
+                    "Multi-Persona Session Vault automated credential swapping",
+                    "High-precision HTTP request/response differential delta capture",
+                    "PoC curl reproduction script generation",
+                    "Safe Harbor egress rate limiter & loopback isolation"
+                ],
+                "inputs": ["hypothesis: SecurityHypothesis", "victim_session: str", "attacker_session: str"],
+                "outputs": ["CollectedEvidence: dict", "ResponseDifferential: dict", "PoC_Curl: str"],
+                "governance_scope": "Strict Rate-Limited Probe Execution"
+            },
+            {
+                "id": "agent-reviewer-05",
+                "name": "ReviewerAgent",
+                "version": "2.0.0",
+                "role": "False Positive Elimination & CVSS 3.1 Scoring",
+                "model_binding": settings.gemini_model,
+                "lifecycle_state": "ACTIVE",
+                "capabilities": [
+                    "Adaptive Evidence Validation: verifies non-identical victim/attacker bodies",
+                    "CVSS 3.1 Base Score & Vector string calculation",
+                    "CWE & OWASP Top 10 category classification",
+                    "Strict 0% hallucination verification gate"
+                ],
+                "inputs": ["unverified_finding: dict", "raw_evidence: dict"],
+                "outputs": ["VerifiedFinding: Finding", "ConfidenceScore: float", "CVSS_Vector: str"],
+                "governance_scope": "Deterministic Verification Gate"
+            },
+            {
+                "id": "agent-reporter-06",
+                "name": "ReporterAgent",
+                "version": "2.0.0",
+                "role": "Executive Synthesis & HackerOne Report Generation",
+                "model_binding": settings.gemini_model,
+                "lifecycle_state": "ACTIVE",
+                "capabilities": [
+                    "HackerOne / Bugcrowd compliant Markdown report synthesis",
+                    "Actionable developer remediation & code mitigation advisory",
+                    "Burp Suite XML (<items>) and HAR export package generator",
+                    "Executive vulnerability impact summary generation"
+                ],
+                "inputs": ["verified_findings: list[Finding]", "investigation_id: str"],
+                "outputs": ["InvestigationReport: markdown", "HackerOneReport: markdown", "BurpExportXML: str"],
+                "governance_scope": "Secure Storage & Encrypted Export"
+            }
+        ]
     }
 
 

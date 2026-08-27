@@ -85,7 +85,7 @@ class ConsoleTelemetryEmitter(EventService):
 
 
 async def main():
-    target_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5000"
+    target_url = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:5000"
     investigation_id = "inv-live-demo-001"
 
     print("\033[1;32m" + "=" * 80 + "\033[0m")

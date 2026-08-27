@@ -18,7 +18,8 @@ from app.core.exceptions import ScopeViolationError
 from app.core.logging import get_logger
 from app.findings.schemas import Hypothesis, TestStep
 from app.targets.normalization import normalize_url
-from app.tools.evidence_tools import compute_response_diff
+from app.targets.session_vault import get_session_vault
+from app.tools import compute_response_diff, normalize_test_path
 from app.tools.http_client import ScopeEnforcingHttpClient
 
 logger = get_logger(__name__)
@@ -32,6 +33,7 @@ class EvidenceCollector:
     def __init__(self, investigation_id: str, target_url: str) -> None:
         self.investigation_id = investigation_id
         self.target_url = target_url
+        self._session_vault = get_session_vault(investigation_id)
 
     async def collect_evidence(self, hypothesis: Hypothesis) -> dict[str, Any]:
         """
@@ -48,34 +50,45 @@ class EvidenceCollector:
 
         async with ScopeEnforcingHttpClient(self.investigation_id) as client:
             for step in hypothesis.test_steps:
+                # Normalize symbolic placeholders like {{order_id}} -> 1
+                clean_path = normalize_test_path(step.path)
+
                 # Construct full absolute URL
-                if step.path.startswith("http"):
-                    target_step_url = step.path
+                if clean_path.startswith("http"):
+                    target_step_url = clean_path
                 else:
                     target_step_url = urljoin(
                         f"{base_norm.scheme}://{base_norm.host_with_port}/",
-                        step.path.lstrip("/"),
+                        clean_path.lstrip("/"),
                     )
 
-                # Resolve symbolic authorization tokens if specified in step headers
-                resolved_headers = dict(step.headers or {})
-                auth_hdr = resolved_headers.get("Authorization") or resolved_headers.get("authorization")
+                # Determine role for session credential resolution (CONTROL vs TEST vs ADMIN)
+                step_desc_lower = str(step.description or "").lower()
+                step_hdr_raw = str(step.headers or "").lower()
+                
+                if "admin" in step_desc_lower or "admin" in step_hdr_raw:
+                    role_key = "admin"
+                elif step.step_number == 1 or "control" in step_desc_lower or "owner" in step_desc_lower or "alice" in step_hdr_raw:
+                    role_key = "owner"
+                elif step.step_number == 2 or "test" in step_desc_lower or "attacker" in step_desc_lower or "bob" in step_hdr_raw:
+                    role_key = "attacker"
+                else:
+                    role_key = "anonymous"
+
+                vault_headers = self._session_vault.resolve_headers_for_role(role_key)
+                resolved_headers = {**vault_headers, **(step.headers or {})}
+
+                # Override with explicit Authorization if step specified custom
+                auth_hdr = step.headers.get("Authorization") if step.headers else None
                 if auth_hdr:
-                    auth_lower = str(auth_hdr).lower()
-                    if "admin" in auth_lower:
-                        resolved_headers["Authorization"] = "Bearer admin_token_789"
-                    elif "alice" in auth_lower or "tenant_a" in auth_lower or "owner" in auth_lower or "victim" in auth_lower:
-                        resolved_headers["Authorization"] = "Bearer alice_token_123"
-                    elif "bob" in auth_lower or "tenant_b" in auth_lower or "user" in auth_lower or "attacker" in auth_lower:
-                        resolved_headers["Authorization"] = "Bearer bob_token_456"
-                    else:
-                        resolved_headers["Authorization"] = str(auth_hdr)
+                    resolved_headers["Authorization"] = str(auth_hdr)
 
                 step_record: dict[str, Any] = {
                     "step_number": step.step_number,
                     "description": step.description,
                     "method": step.method.upper(),
                     "url": target_step_url,
+                    "role": role_key,
                     "request_headers": resolved_headers,
                     "request_params": step.params,
                 }
@@ -102,6 +115,12 @@ class EvidenceCollector:
                             headers=resolved_headers,
                             params=step.params,
                             json_body=step.json_body,
+                        )
+                    elif m == "DELETE":
+                        resp = await client.delete(
+                            url=target_step_url,
+                            headers=resolved_headers,
+                            params=step.params,
                         )
                     else:
                         resp = await client.get(

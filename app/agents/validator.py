@@ -259,7 +259,87 @@ class SemanticEvidenceEngine:
                 eg = EvidenceGraph(graph_id, "target", f"{method} {endpoint}", vuln_type, branches, EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION, "CONFIRMED", 0.96, sem.summary)
                 return "CONFIRMED", val_block, 0.96, eg
 
-        # ── 5. Ambiguous / Telemetry / Edge Fallback ──────────────────────────
+        # ── 5. SQL Injection Verification ─────────────────────────────────────
+        elif vuln_type == "SQLi":
+            body_lower = body_str.lower()
+
+            # SQL error signatures across major database engines
+            SQL_ERROR_SIGNATURES = [
+                "sqlite3.operationalerror", "operationalerror", "syntax error",
+                "unrecognized token", "near \"", "sql syntax", "mysql_fetch",
+                "pg_query", "sqlstate", "ora-", "microsoft ole db",
+                "unclosed quotation mark", "quoted string not properly terminated",
+                "you have an error in your sql syntax", "database query error",
+            ]
+
+            # Data exfiltration markers (UNION SELECT / schema dump evidence)
+            EXFIL_SIGNATURES = [
+                "sqlite_master", "information_schema", "table_name", "column_name",
+                "pg_catalog", "sys.objects", "union select", "group_concat",
+            ]
+
+            has_sql_error = any(sig in body_lower for sig in SQL_ERROR_SIGNATURES)
+            has_exfil = any(sig in body_lower for sig in EXFIL_SIGNATURES)
+
+            # A. SQL Error Disclosure (Level 3) — error message proves backend SQL injection surface
+            if has_sql_error and http_status in (200, 500):
+                branches.append(EvidenceBranch("Authorization", "VIOLATED", "Raw SQL error message leaked to client — unsanitized query parameter."))
+                branches.append(EvidenceBranch("Impact", "VERIFIED", f"SQL error disclosed internal database structure (HTTP {http_status})."))
+                branches.append(EvidenceBranch("Reproducibility", "VERIFIED", f"HTTP {http_status} reproducible with crafted input."))
+                val_block["evidence_level"] = EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION.value
+                val_block["authorization_boundary_broken"] = True
+                val_block["impact_demonstrated"] = True
+                val_block["proof_summary"] = "SQLi Proven: Backend SQL error message leaked via unsanitized input parameter."
+                eg = EvidenceGraph(graph_id, "target", f"{method} {endpoint}", vuln_type, branches, EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION, "CONFIRMED", 0.95, sem.summary)
+                return "CONFIRMED", val_block, 0.95, eg
+
+            # B. Data Exfiltration via UNION/Schema Dump (Level 4) — full SQLi with data extraction
+            if has_exfil and http_status in (200, 201):
+                branches.append(EvidenceBranch("Authorization", "VIOLATED", "SQL injection enabled unauthorized data extraction."))
+                branches.append(EvidenceBranch("Impact", "VERIFIED", "Database schema or cross-table data exfiltrated via injected SQL query."))
+                branches.append(EvidenceBranch("Reproducibility", "VERIFIED", f"HTTP {http_status} reproducible."))
+                val_block["evidence_level"] = EvidenceLevel.LEVEL_4_HIGH_IMPACT_PROVEN.value
+                val_block["authorization_boundary_broken"] = True
+                val_block["impact_demonstrated"] = True
+                val_block["proof_summary"] = "SQLi Proven: UNION-based data exfiltration or schema dump achieved."
+                eg = EvidenceGraph(graph_id, "target", f"{method} {endpoint}", vuln_type, branches, EvidenceLevel.LEVEL_4_HIGH_IMPACT_PROVEN, "CONFIRMED", 0.98, sem.summary)
+                return "CONFIRMED", val_block, 0.98, eg
+
+            # C. Tautology-based bypass (e.g., q=' OR 1=1-- returns more results than normal)
+            if http_status == 200 and ("count" in body_dict or "results" in body_dict):
+                result_count = body_dict.get("count", 0)
+                results_list = body_dict.get("results", [])
+                if isinstance(result_count, int) and result_count > 5 or len(results_list) > 5:
+                    branches.append(EvidenceBranch("Authorization", "VIOLATED", "Tautology injection returned unexpectedly large result set."))
+                    branches.append(EvidenceBranch("Impact", "VERIFIED", f"Query returned {result_count or len(results_list)} records — likely bypassed WHERE clause."))
+                    branches.append(EvidenceBranch("Reproducibility", "VERIFIED", f"HTTP {http_status} reproducible."))
+                    val_block["evidence_level"] = EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION.value
+                    val_block["authorization_boundary_broken"] = True
+                    val_block["impact_demonstrated"] = True
+                    val_block["proof_summary"] = f"SQLi Proven: Tautology injection returned {result_count or len(results_list)} records."
+                    eg = EvidenceGraph(graph_id, "target", f"{method} {endpoint}", vuln_type, branches, EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION, "CONFIRMED", 0.90, sem.summary)
+                    return "CONFIRMED", val_block, 0.90, eg
+
+        # ── 6. Information Disclosure Verification ────────────────────────────
+        elif vuln_type in ("InfoDisclosure", "Other"):
+            if http_status == 200 and body_dict:
+                # Check for sensitive info disclosure markers
+                sensitive_keys = ["internal_services", "debug_mode", "internal_build",
+                                  "metadata_service", "admin_service", "database",
+                                  "api_key", "secret", "password", "token", "credential"]
+                found_sensitive = [k for k in sensitive_keys if k in body_str.lower()]
+                if found_sensitive:
+                    branches.append(EvidenceBranch("Authorization", "VIOLATED", "Sensitive internal configuration exposed without authentication."))
+                    branches.append(EvidenceBranch("Impact", "VERIFIED", f"Information disclosure: exposed {', '.join(found_sensitive[:5])}."))
+                    branches.append(EvidenceBranch("Reproducibility", "VERIFIED", f"HTTP {http_status} reproducible."))
+                    val_block["evidence_level"] = EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION.value
+                    val_block["authorization_boundary_broken"] = True
+                    val_block["impact_demonstrated"] = True
+                    val_block["proof_summary"] = f"InfoDisclosure: Sensitive internal data exposed ({', '.join(found_sensitive[:3])})."
+                    eg = EvidenceGraph(graph_id, "target", f"{method} {endpoint}", vuln_type, branches, EvidenceLevel.LEVEL_3_BOUNDARY_VIOLATION, "CONFIRMED", 0.92, sem.summary)
+                    return "CONFIRMED", val_block, 0.92, eg
+
+        # ── 7. Ambiguous / Telemetry / Edge Fallback ──────────────────────────
         branches.append(EvidenceBranch("Authorization", "INCONCLUSIVE", "Telemetry, timing metric, or benign error observed."))
         branches.append(EvidenceBranch("Impact", "INCONCLUSIVE", "No security boundary breach or unauthorized action demonstrated."))
         branches.append(EvidenceBranch("Reproducibility", "VERIFIED", f"HTTP {http_status} observed."))

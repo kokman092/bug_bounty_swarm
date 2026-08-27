@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # ── Google AI ─────────────────────────────────────────────────────────────
     gemini_api_key: str = Field("", description="Gemini API key (AI Studio or Vertex)")
+    gemini_model: str = Field("gemini-3.5-flash", description="Preferred Gemini model (changeable in .env)")
     gcp_oauth_token: str | None = Field(None, description="GCP OAuth Token for Vertex AI")
     google_cloud_project: str | None = Field(None, description="GCP project for Vertex AI")
     google_application_credentials: str | None = Field(
@@ -42,20 +43,28 @@ class Settings(BaseSettings):
 
     # ── Application ───────────────────────────────────────────────────────────
     api_secret_key: str = Field(..., min_length=32, description="Static API secret key")
+    swarm_version: str = Field("2.0.0", description="Swarm version shown in dashboard")
     use_firebase_auth: bool = Field(False, description="Use Firebase Auth instead of API key")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field("INFO")
     environment: Literal["development", "staging", "production"] = Field("development")
 
     # ── Investigation Limits ──────────────────────────────────────────────────
     max_investigations_per_hour: int = Field(5, ge=1, le=100)
-    max_loop_iterations: int = Field(4, ge=1, le=10)
+    max_loop_iterations: int = Field(4, ge=1, le=30)
     max_retries: int = Field(2, ge=0, le=5)
-    agent_timeout_seconds: int = Field(300, ge=30, le=3600)
+    agent_timeout_seconds: int = Field(300, ge=30, le=7200)
 
     # ── Local Development ─────────────────────────────────────────────────────
     use_firestore_emulator: bool = Field(False)
     firestore_emulator_host: str = Field("localhost:8080")
     allow_local_lab_targets: bool = Field(True, description="Allow localhost testing in development mode")
+
+    # ── Burp Suite Integration ────────────────────────────────────────────────
+    burp_proxy_enabled: bool = Field(False)
+    burp_proxy_url: str = Field("http://127.0.0.1:8080")
+    burp_api_url: str = Field("http://127.0.0.1:1337")
+    burp_api_key: str = Field("")
+    burp_collaborator_server: str = Field("")
 
     @field_validator("api_secret_key")
     @classmethod

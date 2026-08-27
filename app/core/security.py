@@ -65,10 +65,26 @@ def _derive_user_id(api_key: str) -> str:
 
 def _verify_api_key(provided_key: str) -> bool:
     """
-    Constant-time comparison to prevent timing attacks.
+    Validates provided API key against configured secret key, Gemini API key,
+    or development default key to prevent accidental lockouts.
+    Automatically strips accidental leading '=' or quotes.
     """
     settings = get_settings()
-    return hmac.compare_digest(provided_key, settings.api_secret_key)
+    clean_provided = provided_key.strip().lstrip("=").strip("\"'")
+    clean_secret = settings.api_secret_key.strip().lstrip("=").strip("\"'")
+
+    if hmac.compare_digest(clean_provided, clean_secret):
+        return True
+    if settings.gemini_api_key:
+        clean_gemini = settings.gemini_api_key.strip().lstrip("=").strip("\"'")
+        if hmac.compare_digest(clean_provided, clean_gemini):
+            return True
+    if settings.environment == "development" and clean_provided in (
+        "test_secret_key_12345678901234567890123456789012",
+        "default_key",
+    ):
+        return True
+    return False
 
 
 async def require_user(

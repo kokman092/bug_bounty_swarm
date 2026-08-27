@@ -14,6 +14,20 @@ from app.investigations.domain import InvestigationPhase, InvestigationStatus
 
 # ── Request Models ────────────────────────────────────────────────────────────
 
+class SessionInput(BaseModel):
+    """Authenticated user persona session credentials."""
+    role: str = Field("attacker", description="'owner' (victim), 'attacker' (researcher), 'admin'")
+    token: str | None = Field(None, description="Bearer or API token")
+    headers: dict[str, str] = Field(default_factory=dict)
+    cookies: dict[str, str] = Field(default_factory=dict)
+
+
+class IngestBurpHistoryRequest(BaseModel):
+    """Request body for POST /investigations/{id}/ingest/burp-history."""
+    burp_xml: str | None = Field(None, description="Raw Burp Suite XML export string")
+    har_json: dict | None = Field(None, description="Standard HAR 1.2 JSON object")
+
+
 class CreateInvestigationRequest(BaseModel):
     """
     Request body for POST /investigations.
@@ -33,6 +47,18 @@ class CreateInvestigationRequest(BaseModel):
             "the existing investigation is returned."
         ),
         max_length=128,
+    )
+    sessions: list[SessionInput] = Field(
+        default_factory=list,
+        description="Optional authenticated user sessions (e.g. Victim Account A vs Attacker Account B) for BOLA/IDOR testing.",
+    )
+    burp_history_xml: str | None = Field(
+        None,
+        description="Optional Burp Suite XML export containing pre-recorded authenticated traffic.",
+    )
+    burp_history_har: dict | None = Field(
+        None,
+        description="Optional standard HAR 1.2 JSON containing pre-recorded traffic.",
     )
 
     @field_validator("target_url")

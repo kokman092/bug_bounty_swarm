@@ -39,6 +39,7 @@ from typing import Any
 
 import httpx
 
+from app.core.config import get_settings
 from app.core.exceptions import ScopeViolationError
 from app.core.logging import get_logger
 from app.targets.authorization import AuthorizationService
@@ -77,8 +78,13 @@ class ScopeEnforcingHttpClient:
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> "ScopeEnforcingHttpClient":
+        settings = get_settings()
+        proxy_url = settings.burp_proxy_url if settings.burp_proxy_enabled else None
+
         self._client = httpx.AsyncClient(
             timeout=self._timeout,
+            proxy=proxy_url,
+            verify=False if proxy_url else True,
             follow_redirects=False,  # We handle redirects manually to validate each hop
             headers={
                 "User-Agent": "BugBounty-Swarm/1.0 (authorized security research)",
@@ -135,6 +141,14 @@ class ScopeEnforcingHttpClient:
         return await self._request(
             "PATCH", url, params=params, data=data, json_body=json_body, headers=headers
         )
+
+    async def delete(
+        self,
+        url: str,
+        params: dict | None = None,
+        headers: dict | None = None,
+    ) -> httpx.Response:
+        return await self._request("DELETE", url, params=params, headers=headers)
 
     async def _request(
         self,

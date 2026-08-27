@@ -5,11 +5,14 @@ AgentOrchestrator — Coordinates the full multi-agent pipeline with:
 - Strict context trimming between phases (preventing token explosion)
 - Deterministic EvidenceCollector execution (no LLM hallucination in HTTP probing)
 - Deduplication tracking in the hypothesis loop
-- Monitored iteration limits (max 4)
+- Attack chaining: validated findings feed into next iteration
+- Vuln class coverage tracking to maximize breadth
+- Inter-iteration cooldown to avoid rate limiting
 - Live event emission via EventService
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.agents.attack_surface import AttackSurfaceAgent
@@ -76,7 +79,7 @@ class AgentOrchestrator:
         trimmed_recon = {
             "target_url": self.target_url,
             "technologies": recon_result.get("technologies", []),
-            "endpoints": recon_result.get("endpoints", [])[:10],
+            "endpoints": recon_result.get("endpoints", [])[:20],  # Increased from 10 to 20 for deeper coverage
             "auth_endpoints": recon_result.get("potential_auth_endpoints", []),
             "summary": recon_result.get("recon_summary", ""),
         }
@@ -117,24 +120,54 @@ class AgentOrchestrator:
 
         already_proposed: list[str] = []
         review_feedback: str | None = None
+        validated_findings_context: list[dict[str, Any]] = []
+        tested_vuln_classes: list[str] = []
         max_iters = settings.max_loop_iterations
 
         for iteration in range(1, max_iters + 1):
-            logger.info("finding_loop_iteration_started", iteration=iteration, has_review_feedback=bool(review_feedback))
+            progress_pct = int((iteration / max_iters) * 100)
+            logger.info(
+                "finding_loop_iteration_started",
+                iteration=iteration,
+                max_iterations=max_iters,
+                progress_pct=progress_pct,
+                has_review_feedback=bool(review_feedback),
+                validated_so_far=len(validated_findings_context),
+                tested_vuln_classes=tested_vuln_classes,
+            )
 
-            # 1. Hunter proposes hypothesis (incorporating feedback from previous rejections)
+            # Inter-iteration cooldown (skip on first iteration)
+            if iteration > 1:
+                await asyncio.sleep(2.0)
+
+            # 1. Hunter proposes hypothesis (with attack chaining and coverage context)
             hypothesis = await hunter_agent.run(
                 attack_surface=attack_surface,
                 already_proposed=already_proposed,
                 iteration=iteration,
                 review_feedback=review_feedback,
+                validated_findings=validated_findings_context,
+                tested_vuln_classes=tested_vuln_classes,
             )
 
             if hypothesis.no_further_hypotheses:
                 logger.info("hunter_signaled_no_further_hypotheses", iteration=iteration)
+                await self._event_service.emit_event(
+                    investigation_id=self.investigation_id,
+                    phase=InvestigationPhase.LOOP.value,
+                    iteration=iteration,
+                    event_type=EventType.PHASE_STARTED,
+                    agent_name="HunterAgent",
+                    input_summary=f"Iteration {iteration}/{max_iters} ({progress_pct}%): Hunter exhausted all attack vectors — ending loop",
+                )
                 break
 
             already_proposed.append(f"{hypothesis.vuln_class.value}:{hypothesis.endpoint}")
+
+            # Track vuln class coverage
+            vc_str = hypothesis.vuln_class.value
+            if vc_str not in tested_vuln_classes:
+                tested_vuln_classes.append(vc_str)
 
             await self._event_service.emit_event(
                 investigation_id=self.investigation_id,
@@ -142,7 +175,7 @@ class AgentOrchestrator:
                 iteration=iteration,
                 event_type=EventType.HYPOTHESIS_PROPOSED,
                 agent_name="HunterAgent",
-                input_summary=f"Iteration {iteration}: Proposing {hypothesis.vuln_class.value} on {hypothesis.endpoint}" + (f" (Pivoted based on feedback: '{review_feedback[:60]}...')" if review_feedback else ""),
+                input_summary=f"Iteration {iteration}/{max_iters} ({progress_pct}%): Proposing {hypothesis.vuln_class.value} on {hypothesis.endpoint}" + (f" (Pivoted based on feedback: '{review_feedback[:60]}...')" if review_feedback else ""),
                 payload=hypothesis.model_dump(mode="json"),
                 correlation_id=hypothesis.hypothesis_id,
             )
@@ -212,7 +245,17 @@ class AgentOrchestrator:
 
             await self._finding_service.save_finding(self.investigation_id, finding)
 
-            # 5. Emit Verdict Event
+            # 5. If validated, add to chain context for future iterations
+            if verdict == FindingStatus.VALIDATED:
+                validated_findings_context.append({
+                    "vuln_class": hypothesis.vuln_class.value,
+                    "title": hypothesis.title,
+                    "endpoint": hypothesis.endpoint,
+                    "evidence_summary": review.get("reason", ""),
+                    "raw_body_sample": str(evidence.get("steps_executed", [{}])[0].get("body", ""))[:300] if evidence.get("steps_executed") else "",
+                })
+
+            # 6. Emit Verdict Event
             event_type = EventType.FINDING_VALIDATED if verdict == FindingStatus.VALIDATED else EventType.FINDING_REJECTED
             await self._event_service.emit_event(
                 investigation_id=self.investigation_id,
@@ -220,7 +263,7 @@ class AgentOrchestrator:
                 iteration=iteration,
                 event_type=event_type,
                 agent_name="ReviewAgent",
-                input_summary=f"Verdict: {verdict.value} for {hypothesis.endpoint} ({finding.confidence.value if finding.confidence else 'N/A'} confidence)",
+                input_summary=f"Verdict: {verdict.value} for {hypothesis.endpoint} ({finding.confidence.value if finding.confidence else 'N/A'} confidence) — {len(validated_findings_context)} validated so far",
                 payload=review,
                 correlation_id=hypothesis.hypothesis_id,
             )
@@ -231,7 +274,7 @@ class AgentOrchestrator:
             phase=InvestigationPhase.REPORT.value,
             event_type=EventType.PHASE_STARTED,
             agent_name="ReportAgent",
-            input_summary="Compiling finalized security assessment report",
+            input_summary=f"Compiling finalized security assessment report — {len(validated_findings_context)} validated findings across {len(tested_vuln_classes)} vuln classes",
         )
 
         reporter = ReportAgent(
@@ -247,9 +290,14 @@ class AgentOrchestrator:
             phase=InvestigationPhase.REPORT.value,
             event_type=EventType.REPORT_GENERATED,
             agent_name="ReportAgent",
-            input_summary=f"Report generated with {report.finding_count} validated findings",
-            payload={"finding_count": report.finding_count},
+            input_summary=f"Report generated with {report.finding_count} validated findings across {len(tested_vuln_classes)} vuln classes: {', '.join(tested_vuln_classes)}",
+            payload={"finding_count": report.finding_count, "vuln_classes_tested": tested_vuln_classes},
         )
 
-        logger.info("orchestrator_pipeline_finished", investigation_id=self.investigation_id)
+        logger.info(
+            "orchestrator_pipeline_finished",
+            investigation_id=self.investigation_id,
+            total_validated=len(validated_findings_context),
+            vuln_classes_covered=tested_vuln_classes,
+        )
         return report

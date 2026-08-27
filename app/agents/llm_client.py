@@ -23,9 +23,9 @@ VERTEX_MODELS_CASCADE = [
 
 AISTUDIO_MODELS_CASCADE = [
     "gemini-3.5-flash",
+    "gemini-3.6-flash",
     "gemini-3.7-flash",
     "gemini-flash-latest",
-    "gemini-3.6-flash",
 ]
 
 MODELS_CASCADE = VERTEX_MODELS_CASCADE + AISTUDIO_MODELS_CASCADE
@@ -39,11 +39,24 @@ def _get_genai_client() -> genai.Client:
     if _CLIENT_INSTANCE is None:
         import os
         settings = get_settings()
-        oauth_token = settings.gcp_oauth_token or os.getenv("GCP_OAUTH_TOKEN")
+        gemini_key = (settings.gemini_api_key or os.getenv("GEMINI_API_KEY") or "").strip()
+        oauth_token = (settings.gcp_oauth_token or os.getenv("GCP_OAUTH_TOKEN") or "").strip()
         project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or settings.gcp_project_id or "project-4183c876-9be4-4bc7-9f2"
         region = os.getenv("GCP_REGION") or settings.gcp_region or "us-central1"
 
-        if oauth_token:
+        # Build ordered cascade: preferred model first, then fallbacks
+        preferred = settings.gemini_model or "gemini-3.5-flash"
+        all_aistudio = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest"]
+        ordered = [preferred] + [m for m in all_aistudio if m != preferred]
+
+        # 1. AI Studio Mode: preferred when GEMINI_API_KEY is set
+        if gemini_key and len(gemini_key) > 10 and not gemini_key.startswith("your_"):
+            _CLIENT_INSTANCE = genai.Client(api_key=gemini_key)
+            _IS_VERTEX_MODE = False
+            MODELS_CASCADE = ordered
+            logger.info("llm_client_initialized_aistudio", model=preferred, key_prefix=gemini_key[:6] + "...")
+        # 2. Vertex AI with OAuth token (only if key is a real token, not empty)
+        elif oauth_token and len(oauth_token) > 20:
             from google.oauth2.credentials import Credentials
             creds = Credentials(token=oauth_token)
             _CLIENT_INSTANCE = genai.Client(
@@ -55,13 +68,8 @@ def _get_genai_client() -> genai.Client:
             _IS_VERTEX_MODE = True
             MODELS_CASCADE = VERTEX_MODELS_CASCADE
             logger.info("llm_client_initialized_vertex_oauth", project=project_id, region=region)
-        elif settings.gemini_api_key and settings.gemini_api_key.startswith("AIzaSy"):
-            _CLIENT_INSTANCE = genai.Client(api_key=settings.gemini_api_key)
-            _IS_VERTEX_MODE = False
-            MODELS_CASCADE = AISTUDIO_MODELS_CASCADE
-            logger.info("llm_client_initialized_aistudio")
         else:
-            # Native Google Cloud Vertex AI (Cloud Run / Application Default Credentials)
+            # 3. Native Google Cloud Vertex AI (Cloud Run / ADC)
             _CLIENT_INSTANCE = genai.Client(
                 vertexai=True,
                 project=project_id,

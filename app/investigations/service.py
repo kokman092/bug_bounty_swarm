@@ -111,14 +111,36 @@ class InvestigationService:
         doc_ref = investigations_ref().document(investigation_id)
         await doc_ref.set(doc_data)
 
-        # Step 3: Emit creation event
+        # Step 3: Populate SessionVault if human researcher provided authenticated sessions
+        from app.targets.session_vault import UserSession, get_session_vault
+        vault = get_session_vault(investigation_id)
+        for s in (request.sessions or []):
+            vault.add_session(UserSession(role=s.role, token=s.token, headers=s.headers, cookies=s.cookies))
+
+        # Step 4: Parse pre-recorded Burp history if supplied
+        parsed_history = None
+        if request.burp_history_xml:
+            from app.tools.burp.history_parser import parse_burp_xml_history
+            parsed_history = parse_burp_xml_history(request.burp_history_xml)
+        elif request.burp_history_har:
+            from app.tools.burp.history_parser import parse_har_history
+            parsed_history = parse_har_history(request.burp_history_har)
+
+        doc_data["burp_history"] = parsed_history
+
+        # Step 5: Emit creation event
         await self._event_service.emit_event(
             investigation_id=investigation_id,
             phase="INITIALIZATION",
             event_type=EventType.INVESTIGATION_CREATED,
             agent_name="System",
-            input_summary=f"Investigation created for {normalized_target.canonical}",
-            payload={"target_url": request.target_url, "canonical": normalized_target.canonical},
+            input_summary=f"Investigation created for {normalized_target.canonical}" + (f" with {len(request.sessions)} authenticated sessions" if request.sessions else "") + (f" and {parsed_history.get('total_requests', 0)} recorded Burp requests" if parsed_history else ""),
+            payload={
+                "target_url": request.target_url,
+                "canonical": normalized_target.canonical,
+                "sessions_configured": len(request.sessions or []),
+                "burp_requests_ingested": parsed_history.get("total_requests", 0) if parsed_history else 0,
+            },
         )
 
         # Step 4: Dispatch task to queue

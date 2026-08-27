@@ -6,22 +6,45 @@
 
 const DEFAULT_KEY = "test_secret_key_12345678901234567890123456789012";
 
+function sanitizeKey(key) {
+  if (!key) return DEFAULT_KEY;
+  const cleaned = key.replace(/^[= "']+/, "").replace(/[ "']+$/, "").trim();
+  return cleaned.length > 10 ? cleaned : DEFAULT_KEY;
+}
+
 export class SwarmApiClient {
   constructor(baseUrl, apiKey) {
-    this.apiKey = apiKey || localStorage.getItem("swarm_api_key") || DEFAULT_KEY;
+    this.apiKey = sanitizeKey(apiKey || localStorage.getItem("swarm_api_key"));
   }
 
   setApiKey(key) {
-    this.apiKey = key;
-    localStorage.setItem("swarm_api_key", key);
+    this.apiKey = sanitizeKey(key);
+    localStorage.setItem("swarm_api_key", this.apiKey);
   }
 
   _getHeaders() {
-    const headers = { "Content-Type": "application/json" };
-    if (this.apiKey) {
-      headers["X-API-Key"] = this.apiKey;
+    return {
+      "Content-Type": "application/json",
+      "X-API-Key": sanitizeKey(this.apiKey),
+    };
+  }
+
+  /** Fetch runtime config from backend at startup — returns { api_key, gemini_model, swarm_version, burp_proxy_enabled } */
+  async fetchConfig() {
+    for (const host of ["http://127.0.0.1:8000", "http://localhost:8000", ""]) {
+      try {
+        const url = host ? `${host}/api/config` : "/api/config";
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const cfg = await resp.json();
+          if (cfg.api_key) {
+            this.setApiKey(cfg.api_key);
+          }
+          return cfg;
+        }
+      } catch (_) { /* try next host */ }
     }
-    return headers;
+    return null;
   }
 
   async _fetchWithFallback(path, options) {
@@ -71,11 +94,12 @@ export class SwarmApiClient {
     throw lastError || new Error("Cannot connect to backend API server at http://127.0.0.1:8000");
   }
 
-  async createInvestigation(targetUrl) {
+  async createInvestigation(payload) {
+    const body = typeof payload === "string" ? { target_url: payload } : payload;
     return await this._fetchWithFallback("/investigations", {
       method: "POST",
       headers: this._getHeaders(),
-      body: JSON.stringify({ target_url: targetUrl }),
+      body: JSON.stringify(body),
     });
   }
 

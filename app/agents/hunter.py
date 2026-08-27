@@ -3,11 +3,14 @@ app/agents/hunter.py
 ────────────────────
 HunterAgent — Dynamic offensive hypothesis generator with structured test steps using Gemini LLMs.
 Purely LLM-driven: Zero hardcoded endpoints, zero local URLs, zero mocked payloads.
+
+v2: Loads external prompt, supports attack chaining, dynamic temperature, vuln class coverage.
 """
 from __future__ import annotations
 
 import json
 import uuid
+from pathlib import Path
 from typing import Any
 
 from app.agents.llm_client import agenerate_structured_content
@@ -16,7 +19,11 @@ from app.findings.schemas import Hypothesis, TestStep, VulnClass
 
 logger = get_logger(__name__)
 
-SYSTEM_INSTRUCTION = """
+# Load the full hunter prompt from external file (has Phase 2-4 discipline)
+_PROMPT_FILE = Path(__file__).parent / "prompts" / "hunter.txt"
+_EXTERNAL_PROMPT = _PROMPT_FILE.read_text(encoding="utf-8") if _PROMPT_FILE.exists() else ""
+
+SYSTEM_INSTRUCTION = _EXTERNAL_PROMPT or """
 You are an automated API Access Control & Security Verification Engine.
 Your role is to design structured integration test cases to verify multi-tenant isolation, authorization boundaries, and parameter validation against target API endpoints.
 
@@ -65,6 +72,9 @@ If all attack surfaces have been thoroughly investigated, output:
 }
 """
 
+# All vuln classes the hunter should attempt to cover across a full scan
+ALL_VULN_CLASSES = ["BOLA", "IDOR", "AuthBypass", "SSRF", "MassAssignment", "SQLi", "InfoDisclosure"]
+
 
 class HunterAgent:
     """Dynamic hypothesis generator powered 100% by Gemini LLM reasoning."""
@@ -78,13 +88,49 @@ class HunterAgent:
         already_proposed: list[str],
         iteration: int,
         review_feedback: str | None = None,
+        validated_findings: list[dict[str, Any]] | None = None,
+        tested_vuln_classes: list[str] | None = None,
     ) -> Hypothesis:
         logger.info(
             "hunter_agent_started",
             iteration=iteration,
             already_proposed_count=len(already_proposed),
             has_review_feedback=bool(review_feedback),
+            validated_findings_count=len(validated_findings or []),
         )
+
+        # Dynamic temperature: starts conservative (0.2), increases for creative pivoting
+        temperature = min(0.2 + (iteration - 1) * 0.03, 0.5)
+
+        # Build attack chaining context from validated findings
+        chain_context = ""
+        if validated_findings:
+            chain_items = []
+            for vf in validated_findings:
+                chain_items.append(
+                    f"  - [{vf.get('vuln_class', 'Unknown')}] {vf.get('title', 'N/A')} on {vf.get('endpoint', 'N/A')}"
+                    f" → Evidence: {vf.get('evidence_summary', 'N/A')[:200]}"
+                )
+            chain_context = (
+                "\n\n## Previously VALIDATED Findings (Use for Attack Chaining)\n"
+                "Chain these discoveries into deeper attacks. For example:\n"
+                "- If InfoDisclosure revealed internal URLs → test those via SSRF\n"
+                "- If BOLA found on one resource → test sibling resources\n"
+                "- If MassAssignment works → try escalating to admin and accessing admin-only routes\n\n"
+                + "\n".join(chain_items)
+            )
+
+        # Build coverage nudge
+        coverage_nudge = ""
+        if tested_vuln_classes:
+            untested = [vc for vc in ALL_VULN_CLASSES if vc not in tested_vuln_classes]
+            if untested:
+                coverage_nudge = (
+                    f"\n\n## Vulnerability Coverage Gap\n"
+                    f"Already tested: {', '.join(tested_vuln_classes)}\n"
+                    f"NOT YET TESTED (prioritize these): {', '.join(untested)}\n"
+                    f"Expand coverage to maximize true positive discovery across all vulnerability classes."
+                )
 
         prompt = f"""
 Current Iteration: {iteration}
@@ -97,17 +143,20 @@ Already Tested Endpoints:
 
 Previous Reviewer Feedback:
 {review_feedback or 'None (Initial test run)'}
+{chain_context}
+{coverage_nudge}
 
 Task:
 Propose ONE priority integration test case to verify access control and boundary isolation.
 If review feedback indicates that an earlier endpoint enforced proper authorization or returned 404, pivot to test a different endpoint or parameter.
+Focus on EXPLOITABLE authorization vulnerabilities, not noise (no missing headers, no banner disclosure).
 """
 
         raw_text = await agenerate_structured_content(
             contents=prompt,
             system_instruction=SYSTEM_INSTRUCTION,
             response_mime_type="application/json",
-            temperature=0.2,
+            temperature=temperature,
         )
 
         # Clean markdown code blocks if the model wrapped output
@@ -139,13 +188,22 @@ If review feedback indicates that an earlier endpoint enforced proper authorizat
                         test_steps=[
                             TestStep(
                                 step_number=1,
-                                description=f"Probe {ep_path} for object level authorization",
+                                description=f"Control: Request {ep_path} as owner",
+                                method=ep_info.get("method", "GET"),
+                                path=ep_path,
+                                headers={"Authorization": "Bearer alice_token_123"},
+                                params={},
+                                json_body=None,
+                            ),
+                            TestStep(
+                                step_number=2,
+                                description=f"Test: Request {ep_path} as unauthorized attacker",
                                 method=ep_info.get("method", "GET"),
                                 path=ep_path,
                                 headers={"Authorization": "Bearer bob_token_456"},
                                 params={},
                                 json_body=None,
-                            )
+                            ),
                         ],
                         no_further_hypotheses=False,
                     )

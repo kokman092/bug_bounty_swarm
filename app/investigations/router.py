@@ -97,6 +97,37 @@ async def cancel_investigation(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.message)
 
 
+@router.post(
+    "/{investigation_id}/ingest/burp-history",
+    status_code=status.HTTP_200_OK,
+    summary="Ingest Burp Suite XML or HAR recorded traffic into active investigation",
+)
+async def ingest_burp_history(
+    investigation_id: str,
+    payload: dict,
+    user: AuthUser = Depends(require_user),
+    service: InvestigationService = Depends(get_investigation_service),
+) -> dict:
+    burp_xml = payload.get("burp_xml")
+    har_json = payload.get("har_json")
+
+    from app.tools.burp.history_parser import parse_burp_xml_history, parse_har_history
+    if burp_xml:
+        parsed = parse_burp_xml_history(burp_xml)
+    elif har_json:
+        parsed = parse_har_history(har_json)
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must provide 'burp_xml' or 'har_json'")
+
+    return {
+        "status": "ingested",
+        "investigation_id": investigation_id,
+        "total_requests": parsed.get("total_requests", 0),
+        "observed_cookies": parsed.get("observed_cookies", {}),
+        "observed_auth_headers": parsed.get("observed_auth_headers", []),
+    }
+
+
 # ── Internal Route (Invoked by Cloud Tasks) ───────────────────────────────────
 
 @internal_router.post(
