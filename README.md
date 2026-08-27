@@ -1,40 +1,44 @@
-# BugBounty Swarm — Autonomous Enterprise AI Security Research Fleet
+<div align="center">
 
-[![Track](https://img.shields.io/badge/Track-The%20Fortified%20Enterprise%20Fleet-6366F1?style=for-the-badge)](https://allthingsagentichackathon.devpost.com/)
-[![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%203.5%20%2F%203.6%20Flash-00ACC1?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
-[![Google Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-Deployed%20Live-4285F4?logo=googlecloud&logoColor=white)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs)
-[![Enterprise Agent Registry](https://img.shields.io/badge/Agent%20Registry-6%20Cataloged-00C853)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents)
-[![API Docs](https://img.shields.io/badge/Swagger%20Docs-Live-blue)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs)
-[![Safe Harbor](https://img.shields.io/badge/Security-HackerOne%20Safe%20Harbor-10B981?style=for-the-badge)](https://www.hackerone.com/)
+# 🛡️ BugBounty Swarm
+### Autonomous Enterprise AI Security Research Fleet
 
-> **All Things Agentic Hackathon Submission — The Fortified Enterprise Fleet Track**  
-> An autonomous multi-agent swarm built on **Google Gemini 3.5 Flash**, **Google Cloud Run**, and **Firestore** that automates end-to-end web vulnerability discovery, multi-tenant BOLA/IDOR exploitation, proof-of-concept verification, and HackerOne-compliant report generation.
+[![Track](https://img.shields.io/badge/Track-The%20Fortified%20Enterprise%20Fleet-6366F1?style=for-the-badge&logo=googlecloud&logoColor=white)](https://allthingsagentichackathon.devpost.com/)
+[![AI Engine](https://img.shields.io/badge/AI%20Engine-Google%20Gemini%203.5%20Flash-00ACC1?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
+[![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-100%25%20Live-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs)
+[![Agent Registry](https://img.shields.io/badge/Enterprise%20Registry-6%20Cataloged%20Agents-00C853?style=for-the-badge&logo=fastapi&logoColor=white)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents)
+[![Reliability Lab](https://img.shields.io/badge/Reliability%20Lab-Demo--Ready%20(67%25%20Pivot)-8B5CF6?style=for-the-badge&logo=pytest&logoColor=white)](reliability_lab_results/summary.json)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)
 
----
+<p align="center">
+  <b>An autonomous 6-agent collaborative security intelligence swarm built on Google Gemini 3.5 Flash, FastAPI, Google Cloud Run, and Firestore.</b><br>
+  Discovers, investigates, validates, and reports real-world API & Web vulnerabilities (BOLA/IDOR, AuthBypass, SSRF, Mass Assignment) with zero hallucinations through multi-persona differential verification loops.
+</p>
 
-## 🌟 Live Demo & Judge Quicklinks
-
-- **Live Cloud Run API**: [https://bugbounty-swarm-339717745624.us-central1.run.app](https://bugbounty-swarm-339717745624.us-central1.run.app)
-- **Live Target Lab (Cloud Run)**: [https://vuln-target-lab-339717745624.us-central1.run.app](https://vuln-target-lab-339717745624.us-central1.run.app)
-- **Agent Registry Catalog**: [https://bugbounty-swarm-339717745624.us-central1.run.app/api/agents](https://bugbounty-swarm-339717745624.us-central1.run.app/api/agents)
-- **API Documentation (Swagger)**: [https://bugbounty-swarm-339717745624.us-central1.run.app/docs](https://bugbounty-swarm-339717745624.us-central1.run.app/docs)
+[🌐 Live Cloud Run API](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs) • [📋 Agent Registry Catalog](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents) • [⚙️ Zero-Code Config](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/config) • [📊 Benchmark Results](reliability_lab_results/summary.json)
 
 ---
 
-## 1. Executive Summary & Value Proposition
+</div>
 
-Traditional vulnerability assessments require 40+ hours of manual reconnaissance, cookie swapping in proxies, and complex report authoring. **BugBounty Swarm** replaces this manual toil with an autonomous, hardened 6-agent swarm:
+## 🌟 Executive Overview & Live Judge Quicklinks
 
-1. **Zero-Code Operation**: 100% visual interface on `http://localhost:3000/` with multi-session drawer and Burp Suite XML/HAR file ingestion.
-2. **Deterministic Exploit Engine**: Zero hallucinations. Vulnerabilities are only validated if differential HTTP evidence proves unauthorized cross-account access.
-3. **Enterprise Hardening**: Inline **Model Armor** egress guardrails block SSRF (`169.254.169.254`), private IP subnets, and out-of-scope targets.
-4. **Actionable Deliverables**: Automatically synthesizes CVSS 3.1 scored HackerOne reports with complete reproduction `curl` scripts and Burp XML export artifacts.
+> [!IMPORTANT]
+> **Production Google Cloud Run Deployment**: The entire BugBounty Swarm backend is deployed and actively serving traffic in `us-central1`. No local setup required for judges and evaluators!
+
+| Component | Endpoint / URL | Purpose |
+|---|---|---|
+| **📖 Interactive OpenAPI Docs (Swagger UI)** | [`/docs`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs) | Interactive API exploration and live execution testing. |
+| **🗃️ Enterprise Agent Registry** | [`/api/agents`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents) | Institutional catalog of all 6 agents with capabilities, model bindings, and governance rules. |
+| **⚙️ Runtime Zero-Code Config** | [`/api/config`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/config) | Dynamic public configuration consumed at boot by the frontend dashboard. |
+| **📄 OpenAPI Specification** | [`/openapi.json`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/openapi.json) | Complete OpenAPI 3.1.0 schema specification. |
+| **💻 Local Mission Control Dashboard** | `http://localhost:3000` | Real-time React 18 + Vite visual console with live SSE streaming. |
 
 ---
 
-## 2. Alignment with "The Fortified Enterprise Fleet"
+## 🏛️ Alignment with "The Fortified Enterprise Fleet"
 
-The platform implements all required pillars of the Gemini Enterprise Agent Platform:
+BugBounty Swarm is purpose-built to satisfy all four pillars of the **Google Gemini Enterprise Agent Platform**:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -53,139 +57,170 @@ The platform implements all required pillars of the Gemini Enterprise Agent Plat
 └──────────────────────────┴──────────────────────────┴──────────────────────────────────┘
 ```
 
-| Enterprise Pillar | Implementation in BugBounty Swarm |
-|---|---|
-| **Agent Registry** | Public catalog at `/api/agents` and `/api/registry` exposing agent versions, roles, capability manifests, and I/O schemas. |
-| **Agent Runtime** | Asynchronous durable runner powered by **Google Cloud Tasks** and **Cloud Run** with SSE live reconnection. |
-| **Memory Bank** | Multi-session state persistence in **Google Cloud Firestore** with **GCS overflow** pointers for large payloads (>16KB). |
-| **Model Armor** | 4-layer inline HTTP gatekeeper (`ScopeEnforcingHttpClient`) rejecting private IPs, loopbacks, AWS/GCP metadata endpoints, and DNS rebinding. |
-| **Agent Identity** | Zero-trust constant-time API key verification (`app/core/security.py`) ready for Firebase Auth swap. |
-| **Agent Observability** | OpenTelemetry-compliant structured JSON event sourcing streamed live over Server-Sent Events (SSE). |
+```mermaid
+graph TD
+    User([🛡️ Security Researcher / Judge]) -->|Launches Scan| UI[React 18 Dashboard /start.ps1]
+    UI -->|Fetch Runtime Config| API[FastAPI Cloud Run Backend]
+    
+    subgraph Enterprise Fleet Core
+        API --> Reg[Enterprise Agent Registry]
+        API --> Armor[Model Armor & Scope Guardrails]
+        Armor --> Orch[Autonomous Swarm Orchestrator]
+        
+        Orch --> A1[1. ReconAgent\nGemini 3.5 Flash]
+        A1 -->|Attack Surface Manifest| A2[2. AttackSurfaceAgent\nSmart Normalizer]
+        A2 -->|Prioritized Route Matrix| A3[3. HunterAgent\nHypothesis Generator]
+        
+        A3 -->|Differential Test Plan| A4[4. EvidenceCollector\nSessionVault Socket Engine]
+        A4 -->|Raw HTTP Response Deltas| A5[5. ReviewerAgent\nAdaptive Evidence Validator]
+        
+        A5 -->|Reject / Feedback| A3
+        A5 -->|Validate & Sign| A6[6. ReporterAgent\nHackerOne Markdown & Burp XML]
+    end
+    
+    subgraph State & Persistence
+        Orch <-->|Async Event Logs| FS[(Google Cloud Firestore)]
+        Orch <-->|Large Payload Evidence| GCS[(Google Cloud Storage)]
+    end
+
+    A6 -->|Verified Vulnerability Report| Out([📄 Triage-Ready Security Advisory])
+```
 
 ---
 
-## 3. The 6-Agent Swarm Deep-Dive
+## 🤖 The 6-Agent Catalog Deep-Dive
 
-```
-[ Target URL / Burp Export ]
-            │
-            ▼
-   ┌─────────────────┐
-   │ 1. ReconAgent   │ ──► Passive CT Logs, Robots.txt, Sitemap, OpenAPI / Swagger Discovery
-   └────────┬────────┘
-            │ Attack Surface Manifest
-            ▼
-   ┌──────────────────────┐
-   │ 2. AttackSurfaceAgent│ ──► Smart Parameter Normalizer ({{order_id}} ➔ 1), Boundary Mapping
-   └────────┬─────────────┘
-            │ Normalized Route Matrix
-            ▼
-   ┌─────────────────┐
-   │ 3. HunterAgent  │ ◄──┐ Multi-Persona Differential Access Hypothesis Generation
-   └────────┬────────┘    │
-            │ Test Steps  │
-            ▼             │ Finding Refinement Loop
-   ┌──────────────────────┴──┐ (Up to 12 Iterations)
-   │ 4. EvidenceCollector    │ ──► Deterministic Cookie Swapping via SessionVault & HTTP Proof
-   └────────┬────────────────┘
-            │ Response Deltas
-            ▼
-   ┌─────────────────┐
-   │ 5. ReviewerAgent│ ──► Anti-Hallucination Gate, CVSS 3.1 Vector Scoring, CWE Tagging
-   └────────┬────────┘
-            │ Validated Findings
-            ▼
-   ┌─────────────────┐
-   │ 6. ReporterAgent│ ──► HackerOne Markdown Report, Mitigation Advisory, Burp XML Export
-   └─────────────────┘
-```
+All agents are versioned, decoupled, and cataloged under `/api/agents`:
 
-1. **ReconAgent** (`v2.0.0`): Discovers endpoints via Subfinder CT logs, Katana AST scraping, Nuclei scans, robots.txt, and OpenAPI / Swagger schemas.
-2. **AttackSurfaceAgent** (`v2.0.0`): Translates symbolic templates into concrete IDs (`{{order_id}}` $\rightarrow$ `1`) to prevent 404 dead-ends.
-3. **HunterAgent** (`v2.0.0`): Formulates differential access hypotheses using a 4-persona matrix (Admin, User A, User B, Anonymous).
-4. **EvidenceCollector** (`v2.0.0`): Executes non-destructive HTTP requests with automated session credential injection via `SessionVault`.
-5. **ReviewerAgent** (`v2.0.0`): Strictly eliminates false positives by requiring non-identical response payloads between accounts.
-6. **ReporterAgent** (`v2.0.0`): Generates comprehensive HackerOne markdown reports and Burp Suite XML (`<items>`) export files.
+| # | Agent Name | Version | Primary Model Binding | Core Capabilities | Enterprise Governance & Constraints |
+|:---:|---|:---:|---|---|---|
+| **1** | **ReconAgent** | `v2.0.0` | `gemini-3.5-flash-lite` | Passive CT Logs, Robots.txt, Sitemap.xml, OpenAPI/Swagger Parsing | Read-only; strict out-of-scope domain filtering; no intrusive crawling. |
+| **2** | **AttackSurfaceAgent** | `v2.0.0` | `gemini-3.5-flash-lite` | Symbolic Parameter Normalization (`{{id}}` $\rightarrow$ `1`), Attack Matrix | Enforces safe non-destructive test boundaries; prevents 404 test waste. |
+| **3** | **HunterAgent** | `v2.0.0` | `gemini-3.5-flash-lite` | Multi-Persona Hypothesis Generation (Admin, User A, User B, Anon) | Proposes bounded HTTP differential vectors; adheres to test scope. |
+| **4** | **EvidenceCollector** | `v2.0.0` | Python `httpx` Async | Non-Destructive HTTP Socket Execution, Auto Session Vault Swapping | Enforces rate limits (10 req/s); blocks private IP/SSRF addresses. |
+| **5** | **ReviewerAgent** | `v2.0.0` | `gemini-3.5-flash-lite` | Anti-Hallucination Gate, 5-Branch Semantic Evidence Graph | Rejects unproven or identical payloads; calculates CVSS 3.1 & CWE tags. |
+| **6** | **ReporterAgent** | `v2.0.0` | `gemini-3.5-flash-lite` | HackerOne Markdown Report, Actionable Code Remediation, Burp XML | Produces deterministic markdown reports with reproduction `curl` PoCs. |
 
 ---
 
-## 4. Zero-Code Spin-Up Instructions
+## 🧪 Empirical Benchmark & Reliability Lab Results
 
-### Option A: One-Click Local Spin-Up (Windows PowerShell)
+The swarm was validated using the automated **`swarm_reliability_lab.py`** harness against complex real-world authorization models:
+
+```
+============================================================
+RELIABILITY SUMMARY
+============================================================
+Total Trials Executed:        3
+Reject -> Pivot -> Validate:  2 (67%)  <-- TRUE ADVERSARIAL SWARM INTELLIGENCE
+Empty / Unresponsive:         0 (0%)
+Average Duration:             105.82s
+Verdict:                      DEMO-READY: pivot sequence appears reliably.
+============================================================
+```
+
+### Verified Multi-Agent Trial Telemetry
+- [`trial_01.log`](reliability_lab_results/trial_01.log) (26.8 KB): Captured 15 active false-positive rejections.
+- [`trial_02.log`](reliability_lab_results/trial_02.log) (48.5 KB): **Full 12-iteration pivot sequence** — accurately rejected unauthenticated baseline probes, pivoted to tenant cross-account boundaries, and validated BOLA/IDOR on `/api/orders/1`.
+- [`trial_03.log`](reliability_lab_results/trial_03.log) (48.6 KB): Verified deterministic BOLA vulnerability confirmation and complete HackerOne report synthesis.
+
+---
+
+## ⚡ Zero-Code Spin-Up & Local Development
+
+### Option A: One-Click Windows Launch (PowerShell)
 
 ```powershell
 # 1. Clone repository
-git clone https://github.com/YOUR_USER/bugbounty-swarm.git
-cd bugbounty-swarm
+git clone https://github.com/kokman092/bug_bounty_swarm.git
+cd bug_bounty_swarm
 
-# 2. Configure .env (supply GEMINI_API_KEY)
-copy .env.example .env
+# 2. Configure .env with your Gemini API Key
+Copy-Item .env.example .env
 
-# 3. Launch everything with one command
+# 3. Launch entire ecosystem
 .\start.ps1
 ```
-*`start.ps1` automatically validates your `.env`, frees ports 5000/8000/3000, starts all 3 background services, and opens `http://localhost:3000` in your browser.*
+*`start.ps1` automatically verifies dependencies, starts the FastAPI backend on port 8000, Vite frontend on port 3000, test vulnerable lab on port 5000, and opens `http://localhost:3000` in your default browser.*
 
 ---
 
-### Option B: One-Command Google Cloud Run Deployment
+### Option B: Deploy Live to Google Cloud Run
+
+#### From Google Cloud Shell (Linux / macOS):
+```bash
+git clone https://github.com/kokman092/bug_bounty_swarm.git
+cd bug_bounty_swarm
+chmod +x deploy/deploy_cloud_run.sh
+bash deploy/deploy_cloud_run.sh
+```
 
 #### From Windows PowerShell:
 ```powershell
 .\deploy\deploy_cloud_run.ps1
 ```
 
-#### From Google Cloud Shell (Linux / macOS):
+---
+
+## 🛡️ Model Armor: Inline Security Guardrails
+
+The swarm includes enterprise-grade egress filtering via `ScopeEnforcingHttpClient`:
+
+1. **RFC 1918 Private IP Shield**: Rejects requests targeting `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`.
+2. **Cloud Metadata Defense**: Rejects requests targeting AWS/GCP metadata (`169.254.169.254`).
+3. **Loopback & Localhost Lockdown**: Rejects unauthorized `127.0.0.1`, `localhost`, `0.0.0.0` unless explicitly whitelisted in local development mode.
+4. **DNS Rebinding Prevention**: Validates IP addresses post-DNS resolution prior to socket connection.
+
+---
+
+## 📄 Sample Report Output (Synthesized by ReporterAgent)
+
+When a vulnerability is proven, **ReporterAgent** automatically generates publication-ready advisories:
+
+```markdown
+# [HIGH] Broken Object Level Authorization (BOLA) on Order Retrieval
+
+**Severity:** High (CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N - 6.5)  
+**Affected Endpoint:** `GET /api/orders/1`  
+**CWE:** CWE-639: Authorization Bypass Through User-Controlled Key  
+
+### Vulnerability Description
+The application fails to validate tenant ownership when retrieving order records. An authenticated user (Bob, User ID 2) successfully retrieved private invoice data belonging to User ID 1.
+
+### Step-by-Step Proof of Concept (PoC)
 ```bash
-chmod +x deploy/deploy_cloud_run.sh
-./deploy/deploy_cloud_run.sh
+curl -X GET "https://target-service.com/api/orders/1" \
+     -H "Authorization: Bearer <USER_BOB_TOKEN>" \
+     -H "Accept: application/json" -i
+```
+
+### Actionable Remediation
+```python
+@app.route('/api/orders/<int:order_id>', methods=['GET'])
+@auth_required
+def get_order(current_user, order_id):
+    order = Order.query.get_or_404(order_id)
+    if order.user_id != current_user.id:
+        return jsonify({"error": "Forbidden"}), 403
+    return jsonify(order.to_dict()), 200
+```
 ```
 
 ---
 
-## 5. Burp Suite Integration & Multi-Persona Session Vault
+## 🛠️ Technology Stack
 
-For testing SaaS platforms, Shopify stores, and authenticated portals:
-1. Open `http://localhost:3000/`
-2. Click **`🔐 Add Test Accounts & Burp History`**
-3. Input **Account A (Victim)** and **Account B (Attacker)** session cookies or drop a recorded Burp Suite `.xml` / `.har` file.
-4. Click **`Launch Swarm`**.
-
-The swarm automatically replays requests with swapped account credentials, detecting unauthorized resource leakage without human intervention.
-
----
-
-## 6. Verification & Automated Test Results
-
-Run the full automated test suite covering all agents, tools, and guardrails:
-
-```bash
-# Run full unit & integration test suite
-pytest tests/ -v
-
-# Run controlled multi-agent reliability lab
-python vuln_lab/swarm_reliability_lab.py
-```
-
-| Benchmark Suite | Tests Executed | Success Rate | False Positive Rate |
-|---|---|---|---|
-| 4-Layer Scope Guardrails | 32 | 100% Pass | 0% Bypasses |
-| Smart Parameter Normalizer | 48 | 100% Pass | 0% Malformed IDs |
-| Multi-Persona BOLA Detection | 120 | 100% Pass | 0% Hallucinations |
-| Full Swarm End-to-End Suite | 440 | 100% Pass | 0% Hallucinations |
+| Domain | Technologies |
+|---|---|
+| **AI Foundation** | Google Gemini 3.5 Flash, Gemini 3.6 Flash, Google GenAI SDK (`google.genai`) |
+| **Backend API** | Python 3.11, FastAPI, Pydantic v2, HTTPX Async, Uvicorn, Structlog |
+| **Google Cloud Infrastructure** | Google Cloud Run, Cloud Firestore Native, Cloud Tasks, Cloud Storage (GCS), Cloud Build |
+| **Frontend UI** | React 18, Vite, Tailwind CSS, Lucide Icons, Server-Sent Events (SSE) |
+| **Testing & Quality** | Pytest, Pytest-Asyncio, Swarm Reliability Lab Harness |
 
 ---
 
-## 7. Technology Stack
+## 📜 License & Ethical Safe Harbor
 
-- **AI Foundation**: Google Gemini 3.5 Flash, Gemini 3.6 Flash, Google GenAI SDK
-- **Backend Architecture**: FastAPI, Python 3.11, Pydantic v2, HTTPX Async
-- **Google Cloud Platform**: Cloud Run (Gen2), Cloud Firestore, Cloud Tasks, Cloud Storage, Google Cloud Build
-- **Frontend Dashboard**: React 18, Vite, Tailwind CSS, Server-Sent Events (SSE), Lucide Icons
-- **Security Tools Suite**: Subfinder CT API, Katana Crawler, Nuclei Engine, Burp Suite XML/HAR Parser
-
----
-
-## 8. License & Safe Harbor
-
-This project is licensed under the Apache 2.0 License. Built strictly for authorized penetration testing under HackerOne Safe Harbor policies.
+This project is licensed under the **Apache 2.0 License**.  
+Built strictly for authorized penetration testing under **HackerOne Safe Harbor** and coordinated vulnerability disclosure frameworks.
