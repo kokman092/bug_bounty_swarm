@@ -22,11 +22,14 @@ VERTEX_MODELS_CASCADE = [
 ]
 
 AISTUDIO_MODELS_CASCADE = [
+    "gemini-3.5-flash-lite",
     "gemini-3.5-flash",
     "gemini-3.6-flash",
     "gemini-3.7-flash",
     "gemini-flash-latest",
 ]
+
+
 
 MODELS_CASCADE = VERTEX_MODELS_CASCADE + AISTUDIO_MODELS_CASCADE
 
@@ -44,10 +47,11 @@ def _get_genai_client() -> genai.Client:
         project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or settings.gcp_project_id or "project-4183c876-9be4-4bc7-9f2"
         region = os.getenv("GCP_REGION") or settings.gcp_region or "us-central1"
 
-        # Build ordered cascade: preferred model first, then fallbacks
-        preferred = settings.gemini_model or "gemini-3.5-flash"
-        all_aistudio = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest"]
+        preferred = settings.gemini_model or "gemini-3.5-flash-lite"
+        all_aistudio = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest"]
         ordered = [preferred] + [m for m in all_aistudio if m != preferred]
+
+
 
         # 1. AI Studio Mode: preferred when GEMINI_API_KEY is set
         if gemini_key and len(gemini_key) > 10 and not gemini_key.startswith("your_"):

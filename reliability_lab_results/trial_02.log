@@ -1,0 +1,74 @@
+[1;32m================================================================================[0m
+[1;32m[+] BUGBOUNTY SWARM -- AUTONOMOUS AI AGENT SECURITY ASSESSMENT[0m
+[1;36mTarget URL:[0m http://127.0.0.1:5000
+[1;36mInvestigation ID:[0m inv-live-demo-001
+[1;32m================================================================================[0m
+
+[1/4] [*] Running 4-Layer Scope Guardrail...
+  [OK] Target Authorized: http://127.0.0.1:5000/
+
+[2/4] [*] Launching Multi-Agent Swarm...
+
+[*] [1;34mReconAgent[0m [1;33m[PHASE_STARTED][0m: Initiating reconnaissance on http://127.0.0.1:5000/
+
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+llm_high_demand_backing_off | {"model": "gemini-3.5-flash", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-3.6-flash", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-3.7-flash", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-flash-latest", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-3.5-flash", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-3.6-flash", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-3.7-flash", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+llm_high_demand_backing_off | {"model": "gemini-flash-latest", "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand "}
+Traceback (most recent call last):
+  File "E:\Ai_bugbounty\run_live_swarm.py", line 161, in <module>
+    asyncio.run(main())
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "E:\Ai_bugbounty\run_live_swarm.py", line 123, in main
+    report = await orchestrator.run()
+  File "E:\Ai_bugbounty\app\agents\orchestrator.py", line 67, in run
+    recon_result = await recon_agent.run()
+  File "E:\Ai_bugbounty\app\agents\recon.py", line 104, in run
+    raw_json = await agenerate_structured_content(
+  File "E:\Ai_bugbounty\app\agents\llm_client.py", line 183, in agenerate_structured_content
+    return await asyncio.to_thread(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "E:\Ai_bugbounty\app\agents\llm_client.py", line 172, in generate_structured_content
+    raise last_error or RuntimeError("All Gemini models in cascade failed to return text.")
+  File "E:\Ai_bugbounty\app\agents\llm_client.py", line 113, in generate_structured_content
+    resp = client.models.generate_content(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\models.py", line 6550, in generate_content
+    response = self._generate_content(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\models.py", line 4978, in _generate_content
+    response = self._api_client.request(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\_api_client.py", line 1747, in request
+    response = self._request(http_request, http_options, stream=False)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\_api_client.py", line 1534, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 470, in __call__
+    do = self.iter(retry_state=retry_state)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 371, in iter
+    result = action(retry_state)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 473, in __call__
+    result = fn(*args, **kwargs)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\_api_client.py", line 1511, in _request_once
+    errors.APIError.raise_for_response(response)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\errors.py", line 173, in raise_for_response
+    cls.raise_error(response.status_code, response_json, response)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\errors.py", line 204, in raise_error
+    raise ServerError(status_code, response_json, response)
+google.genai.errors.ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
