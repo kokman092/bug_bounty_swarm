@@ -2,7 +2,9 @@
 
 [![Track](https://img.shields.io/badge/Track-The%20Fortified%20Enterprise%20Fleet-6366F1?style=for-the-badge)](https://allthingsagentichackathon.devpost.com/)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%203.5%20%2F%203.6%20Flash-00ACC1?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
-[![Cloud Infra](https://img.shields.io/badge/Google%20Cloud-Run%20%7C%20Firestore%20%7C%20Cloud%20Tasks-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/)
+[![Google Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-Deployed%20Live-4285F4?logo=googlecloud&logoColor=white)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs)
+[![Enterprise Agent Registry](https://img.shields.io/badge/Agent%20Registry-6%20Cataloged-00C853)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents)
+[![API Docs](https://img.shields.io/badge/Swagger%20Docs-Live-blue)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs)
 [![Safe Harbor](https://img.shields.io/badge/Security-HackerOne%20Safe%20Harbor-10B981?style=for-the-badge)](https://www.hackerone.com/)
 
 > **All Things Agentic Hackathon Submission — The Fortified Enterprise Fleet Track**  
