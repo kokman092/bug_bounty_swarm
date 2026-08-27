@@ -50,8 +50,9 @@ gcloud run deploy "${SERVICE_NAME}" \
     --cpu 2 \
     --min-instances 1 \
     --max-instances 5 \
-    --no-cpu-throttling \
-    --set-env-vars "ENVIRONMENT=production,LOG_LEVEL=INFO,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},GEMINI_MODEL=gemini-3.5-flash,USE_FIRESTORE_EMULATOR=false,API_SECRET_KEY=test_secret_key_12345678901234567890123456789012"
+    --port 8080 \
+    --set-env-vars "ENVIRONMENT=production,LOG_LEVEL=INFO,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},GEMINI_MODEL=gemini-3.5-flash,USE_FIRESTORE_EMULATOR=false,API_SECRET_KEY=test_secret_key_12345678901234567890123456789012,RUNNER_BASE_URL=http://localhost:8080,GCS_BUCKET_NAME=bugbounty-swarm-evidence"
+
 
 echo ""
 echo "[4/4] Verifying Cloud Run deployment..."

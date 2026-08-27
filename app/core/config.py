@@ -33,16 +33,16 @@ class Settings(BaseSettings):
     )
 
     # ── Google Cloud ──────────────────────────────────────────────────────────
-    gcp_project_id: str = Field(..., description="GCP project ID")
+    gcp_project_id: str = Field("project-4183c876-9be4-4bc7-9f2", description="GCP project ID")
     gcp_region: str = Field("us-central1", description="GCP region")
     firestore_database: str = Field("(default)", description="Firestore database name")
     cloud_tasks_queue: str = Field("investigations", description="Cloud Tasks queue name")
     cloud_tasks_location: str = Field("us-central1", description="Cloud Tasks location")
-    runner_base_url: str = Field(..., description="Base URL for Cloud Tasks to reach runner")
-    gcs_bucket_name: str = Field(..., description="Cloud Storage bucket for large payloads")
+    runner_base_url: str = Field("http://localhost:8080", description="Base URL for Cloud Tasks to reach runner")
+    gcs_bucket_name: str = Field("bugbounty-swarm-evidence", description="Cloud Storage bucket for large payloads")
 
     # ── Application ───────────────────────────────────────────────────────────
-    api_secret_key: str = Field(..., min_length=32, description="Static API secret key")
+    api_secret_key: str = Field("test_secret_key_12345678901234567890123456789012", min_length=32, description="Static API secret key")
     swarm_version: str = Field("2.0.0", description="Swarm version shown in dashboard")
     use_firebase_auth: bool = Field(False, description="Use Firebase Auth instead of API key")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field("INFO")

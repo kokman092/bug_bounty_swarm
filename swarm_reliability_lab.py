@@ -22,9 +22,25 @@ SWARM_SCRIPT = str(PROJECT_ROOT / "run_live_swarm.py")
 OUTPUT_DIR = PROJECT_ROOT / "reliability_lab_results"
 
 
+import os
+
+def check_target_alive(target_url: str) -> bool:
+    """Quick health check to ensure vuln lab is responding."""
+    try:
+        import urllib.request
+        with urllib.request.urlopen(target_url, timeout=3) as resp:
+            return resp.status in (200, 301, 302, 404)
+    except Exception:
+        return False
+
+
 def run_once(target_url: str, timeout: int = 180) -> dict:
     """Runs one live swarm execution and parses its stdout for signals."""
     start = time.time()
+    env = dict(os.environ)
+    env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
     try:
         result = subprocess.run(
             [sys.executable, SWARM_SCRIPT, target_url],
@@ -32,6 +48,9 @@ def run_once(target_url: str, timeout: int = 180) -> dict:
             text=True,
             timeout=timeout,
             cwd=str(PROJECT_ROOT),
+            env=env,
+            encoding="utf-8",
+            errors="replace",
         )
         output = (result.stdout or "") + "\n" + (result.stderr or "")
         crashed = result.returncode != 0
@@ -43,13 +62,13 @@ def run_once(target_url: str, timeout: int = 180) -> dict:
             output = str(raw_out)
         crashed = True
     except Exception as exc:
-        output = str(exc)
+        output = f"Execution Error: {exc}"
         crashed = True
 
     duration = time.time() - start
 
-    rejected_count = len(re.findall(r"FINDING_REJECTED|Verdict:\s*REJECTED", output, re.IGNORECASE))
-    validated_count = len(re.findall(r"FINDING_VALIDATED|Verdict:\s*VALIDATED|Verdict:\s*CONFIRMED", output, re.IGNORECASE))
+    rejected_count = len(re.findall(r"FINDING_REJECTED|Verdict:\s*REJECTED|REJECTED", output, re.IGNORECASE))
+    validated_count = len(re.findall(r"FINDING_VALIDATED|Verdict:\s*VALIDATED|Verdict:\s*CONFIRMED|CONFIRMED", output, re.IGNORECASE))
     iteration_matches = re.findall(r"iter(?:ation)?\s*#?(\d+)", output, re.IGNORECASE)
     max_iteration = max((int(i) for i in iteration_matches), default=0)
 
@@ -78,19 +97,26 @@ def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
     results = []
 
+    print(f"Checking target {args.target_url}...")
+    if not check_target_alive(args.target_url):
+        print(f"[!] Target {args.target_url} is not reachable! Make sure vuln lab is running (python -m vuln_lab.app).")
+    else:
+        print(f"[OK] Target {args.target_url} is UP and responding.\n")
+
     print(f"Running {args.runs} trials against {args.target_url}...\n")
     for i in range(1, args.runs + 1):
         print(f"[Trial {i:02d}/{args.runs:02d}] running...", end=" ", flush=True)
         r = run_once(args.target_url, args.timeout)
         results.append(r)
-        (OUTPUT_DIR / f"trial_{i:02d}.log").write_text(r["raw_output"], encoding="utf-8")
+        log_file = OUTPUT_DIR / f"trial_{i:02d}.log"
+        log_file.write_text(r["raw_output"], encoding="utf-8")
         status = (
             "CRASHED" if r["crashed"] else
             "PIVOT (reject->validate)" if r["had_pivot_sequence"] else
             "EMPTY (no findings)" if r["empty_run"] else
             "STRAIGHT-CONFIRM (no rejection shown)"
         )
-        print(f"{status}  ({r['duration_sec']}s, {r['max_iteration']} iterations, rej={r['rejected_count']}, val={r['validated_count']})")
+        print(f"{status}  ({r['duration_sec']}s, log_size={len(r['raw_output'])}B, {r['max_iteration']} iters, rej={r['rejected_count']}, val={r['validated_count']})")
         # Brief pause between trials to stay safely under RPM limits
         time.sleep(2)
 

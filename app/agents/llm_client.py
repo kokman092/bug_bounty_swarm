@@ -157,13 +157,17 @@ def generate_structured_content(
                 last_error = exc
                 if "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
                     logger.warning("llm_rate_limited_backing_off", model=model_name, error=str(exc)[:120])
-                    time.sleep(1.5)  # Quick pause on rate limits
+                    time.sleep(2.0)
+                elif "503" in err_str or "unavailable" in err_str or "high demand" in err_str:
+                    logger.warning("llm_high_demand_backing_off", model=model_name, error=str(exc)[:120])
+                    time.sleep(2.0)
                 else:
                     logger.warning("llm_model_fallback_attempt", model=model_name, error=str(exc)[:120])
 
-        # If full cascade exhausted on attempt 0, wait briefly before final attempt
-        if attempt == 0:
-            time.sleep(3.0)
+        # If full cascade exhausted on this attempt pass, backoff before next pass
+        if attempt < 2:
+            backoff_sec = 3.0 * (attempt + 1)
+            time.sleep(backoff_sec)
 
     raise last_error or RuntimeError("All Gemini models in cascade failed to return text.")
 
