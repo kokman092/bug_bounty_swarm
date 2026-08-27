@@ -1,10 +1,11 @@
 /**
  * frontend/src/api/client.js
  * ──────────────────────────
- * REST API client with intelligent multi-host fallback (127.0.0.1, localhost, proxy).
+ * REST API client with intelligent multi-host fallback (Cloud Run, Localhost, Proxy).
  */
 
 const DEFAULT_KEY = "test_secret_key_12345678901234567890123456789012";
+export const CLOUD_RUN_URL = "https://bugbounty-swarm-backend-339717745624.us-central1.run.app";
 
 function sanitizeKey(key) {
   if (!key) return DEFAULT_KEY;
@@ -14,7 +15,17 @@ function sanitizeKey(key) {
 
 export class SwarmApiClient {
   constructor(baseUrl, apiKey) {
+    this.customBaseUrl = baseUrl || localStorage.getItem("swarm_backend_url") || "";
     this.apiKey = sanitizeKey(apiKey || localStorage.getItem("swarm_api_key"));
+  }
+
+  setBaseUrl(url) {
+    this.customBaseUrl = url.trim().replace(/\/$/, "");
+    localStorage.setItem("swarm_backend_url", this.customBaseUrl);
+  }
+
+  getBaseUrl() {
+    return this.customBaseUrl;
   }
 
   setApiKey(key) {
@@ -29,34 +40,50 @@ export class SwarmApiClient {
     };
   }
 
-  /** Fetch runtime config from backend at startup — returns { api_key, gemini_model, swarm_version, burp_proxy_enabled } */
+  /** Fetch runtime config from backend at startup */
   async fetchConfig() {
-    for (const host of ["http://127.0.0.1:8000", "http://localhost:8000", ""]) {
+    const candidateHosts = [
+      this.customBaseUrl,
+      "http://127.0.0.1:8000",
+      CLOUD_RUN_URL,
+      "http://localhost:8000",
+      "",
+    ].filter(Boolean);
+
+    for (const host of candidateHosts) {
       try {
-        const url = host ? `${host}/api/config` : "/api/config";
+        const url = `${host}/api/config`;
         const resp = await fetch(url);
         if (resp.ok) {
           const cfg = await resp.json();
           if (cfg.api_key) {
             this.setApiKey(cfg.api_key);
           }
-          return cfg;
+          return { ...cfg, connectedHost: host };
         }
       } catch (_) { /* try next host */ }
     }
     return null;
   }
 
-  async _fetchWithFallback(path, options) {
-    const hosts = [
+  /** Fetch Agent Registry Catalog from backend */
+  async fetchAgentRegistry() {
+    return await this._fetchWithFallback("/api/agents");
+  }
+
+  async _fetchWithFallback(path, options = {}) {
+    const candidateHosts = [
+      this.customBaseUrl,
       "http://127.0.0.1:8000",
+      CLOUD_RUN_URL,
       "http://localhost:8000",
       "",
-    ];
+    ].filter(Boolean);
+
     let lastError = null;
 
-    for (const host of hosts) {
-      const url = host ? `${host}${path}` : path;
+    for (const host of candidateHosts) {
+      const url = `${host}${path}`;
       try {
         const resp = await fetch(url, options);
         if (resp.ok) {
@@ -85,13 +112,12 @@ export class SwarmApiClient {
         throw new Error(errorMsg);
       } catch (err) {
         lastError = err;
-        // If it's an explicit server HTTP error (like 401/403/400), don't retry other hosts
-        if (err.message && err.message.startsWith("HTTP") || err.message.includes("Target") || err.message.includes("API key")) {
+        if (err.message && (err.message.startsWith("HTTP") || err.message.includes("Target") || err.message.includes("API key"))) {
           throw err;
         }
       }
     }
-    throw lastError || new Error("Cannot connect to backend API server at http://127.0.0.1:8000");
+    throw lastError || new Error("Cannot connect to backend API server");
   }
 
   async createInvestigation(payload) {

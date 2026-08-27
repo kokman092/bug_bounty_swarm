@@ -50,7 +50,14 @@ app = FastAPI(
 # ── CORS Middleware ────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production via settings
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+    ],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,9 +66,11 @@ app.add_middleware(
 
 # ── Global Exception Handler for Application Exceptions ────────────────────────
 @app.exception_handler(SwarmBaseException)
-async def swarm_exception_handler(request: Request, exc: SwarmBaseException) -> JSONResponse:
-    logger.warning(
-        "handled_swarm_exception",
+async def swarm_exception_handler(
+    request: Request, exc: SwarmBaseException
+) -> JSONResponse:
+    logger.error(
+        "swarm_exception",
         error_code=exc.error_code,
         message=exc.message,
         path=request.url.path,
@@ -84,10 +93,12 @@ app.include_router(internal_inv_router)
 
 # ── Health Check Endpoint (Public) ────────────────────────────────────────────
 @app.get("/healthz", tags=["health"], summary="Health check endpoint for Cloud Run")
+@app.get("/health", tags=["health"], summary="Health check endpoint for Cloud Run")
+@app.get("/api/health", tags=["health"], summary="Health check endpoint for Cloud Run")
 async def health_check() -> dict[str, str]:
     settings = get_settings()
     return {
-        "status": "ok",
+        "status": "healthy",
         "version": settings.swarm_version,
         "service": "bugbounty-swarm",
         "cloud_provider": "Google Cloud Run",
