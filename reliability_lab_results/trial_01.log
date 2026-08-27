@@ -10,3 +10,413 @@
 [2/4] [*] Launching Multi-Agent Swarm...
 
 [*] [1;34mReconAgent[0m [1;33m[PHASE_STARTED][0m: Initiating reconnaissance on http://127.0.0.1:5000/
+
+[*] [1;34mReconAgent[0m [1;33m[AGENT_COMPLETED][0m: Reconnaissance completed
+
+[*] [1;34mAttackSurfaceAgent[0m [1;33m[PHASE_STARTED][0m: Analyzing attack surface and prioritizing targets
+
+[*] [1;34mAttackSurfaceAgent[0m [1;33m[AGENT_COMPLETED][0m: Attack surface analyzed
+
+[*] [1;34mHunterAgent[0m [1;33m[PHASE_STARTED][0m: Starting iterative vulnerability hypothesis & validation loop
+
+[*] [1;34mHunterAgent[0m (iter #1) [1;33m[HYPOTHESIS_PROPOSED][0m: Iteration 1/12 (8%): Proposing BOLA on /api/v2/organizations/1/secrets
+[90m{
+  "hypothesis_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+  "vuln_class": "BOLA",
+  "endpoint": "/api/v2/organizations/1/secrets",
+  "title": "Broken Object Level Authorization on Organization Secrets",
+  "rationale": "Hypothesis \u2192 An unauthorized or low-privileged user can access another organization's secrets by altering the organization ID in the path (/api/v2/organizations/{id}/secrets). Expected vulnerable behavior \u2192 The server returns the secrets JSON without verifying if the requesting user belongs to organization ID 1. Evidence required \u2192 Differential response showing that a secondary low-privileged user token successfully retrieves the exact same secrets payload as the owner token.",
+  "test_steps": [
+    {
+      "step_number": 1,
+      "description": "Request organization secrets as the owner user",
+      "method": "GET",
+      "path": "/api/v2/organizations/1/secrets",
+      "headers": {
+        "Authorization": "Bearer OWNER_TOKEN_HERE"
+      },
+      "par...[0m
+
+[*] [1;34mEvidenceCollector[0m (iter #1) [1;33m[EVIDENCE_COLLECTED][0m: Executed 2 test steps
+[90m{
+  "all_succeeded": true,
+  "steps": [
+    {
+      "step_number": 1,
+      "description": "Request organization secrets as the owner user",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/v2/organizations/1/secrets",
+      "role": "owner",
+      "request_headers": {
+        "Authorization": "Bearer OWNER_TOKEN_HERE"
+      },
+      "request_params": {},
+      "status_code": 401,
+      "response_headers": {
+        "server": "Werkzeug/3.0.3 Python/3.10.11",
+        "date": "Thu, 27 Aug 2026 15:01:16 GMT",
+        "content-type": "application/json",
+        "content-length": "30",
+        "connection": "close"
+      },
+      "body": "{\n  \"error\": \"Unauthorized\"\n}\n",
+      "body_length": 30,
+      "success": true
+    },
+    {
+      "step_number": 2,
+      "description": "Request organization secrets as an unauthorized attacker user",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/v2/organizations/1/secrets",
+      "role": "attacker",
+      "request_he...[0m
+
+[*] [1;34mReviewAgent[0m (iter #1) [1;33m[FINDING_REJECTED][0m: Verdict: REJECTED for /api/v2/organizations/1/secrets (High confidence) — 0 validated so far
+[90m{
+  "verdict": "REJECTED",
+  "confidence": "High",
+  "observed_facts": [
+    "The GET request to /api/v2/organizations/1/secrets with an owner token returned HTTP 401 with the body {\"error\": \"Unauthorized\"}.",
+    "The GET request to /api/v2/organizations/1/secrets with an attacker token returned HTTP 401 with the body {\"error\": \"Unauthorized\"}.",
+    "Both requests yielded identical response bodies and status codes."
+  ],
+  "inferred_conclusions": [
+    "The placeholder tokens used in the test steps were invalid or not recognized by the authentication middleware.",
+    "The endpoint correctly enforces authentication and rejects unauthenticated or improperly authenticated requests with HTTP 401."
+  ],
+  "unknown_elements": [
+    "Whether a valid authenticated owner token would successfully retrieve the organization secrets.",
+    "Whether proper authorization checks exist behind the authentication layer, as the request failed at the authentication stage."
+  ],
+  "false_positive...[0m
+
+[*] [1;34mHunterAgent[0m (iter #2) [1;33m[HYPOTHESIS_PROPOSED][0m: Iteration 2/12 (16%): Proposing AuthBypass on /api/debug/config (Pivoted based on feedback: 'The evidence conclusively shows that both requests resulted ...')
+[90m{
+  "hypothesis_id": "8f3b2e7c-9a1b-4c3d-8e2f-1a2b3c4d5e6f",
+  "vuln_class": "AuthBypass",
+  "endpoint": "/api/debug/config",
+  "title": "Unauthenticated Access to Internal Debug Configuration",
+  "rationale": "Hypothesis -> The endpoint /api/debug/config is exposed without requiring any authentication tokens or session cookies. Expected vulnerable behavior -> Accessing the endpoint anonymously returns internal application configuration, database settings, and debug flags in cleartext JSON. Evidence required -> An HTTP 200 OK response containing sensitive configuration keys when requested without authorization headers.",
+  "test_steps": [
+    {
+      "step_number": 1,
+      "description": "Request debug config without any authentication to observe the security enforcement.",
+      "method": "GET",
+      "path": "/api/debug/config",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "params": {},
+      "json_body": {}
+    }
+  ],
+  "no_further_hypotheses": false
+}[0m
+
+[*] [1;34mEvidenceCollector[0m (iter #2) [1;33m[EVIDENCE_COLLECTED][0m: Executed 1 test steps
+[90m{
+  "all_succeeded": true,
+  "steps": [
+    {
+      "step_number": 1,
+      "description": "Request debug config without any authentication to observe the security enforcement.",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/debug/config",
+      "role": "owner",
+      "request_headers": {
+        "Authorization": "Bearer alice_token_123",
+        "Accept": "application/json"
+      },
+      "request_params": {},
+      "status_code": 200,
+      "response_headers": {
+        "server": "Werkzeug/3.0.3 Python/3.10.11",
+        "date": "Thu, 27 Aug 2026 15:01:23 GMT",
+        "content-type": "application/json",
+        "content-length": "328",
+        "connection": "close"
+      },
+      "body": "{\n  \"database\": \"sqlite3_cluster\",\n  \"debug_mode\": true,\n  \"internal_build\": \"v2.8.1-enterprise\",\n  \"internal_services\": {\n    \"admin_service\": \"http://127.0.0.1:8000/internal\",\n    \"metadata_service\": \"http://169.254.169.254/latest/meta-data/\"\n  },\n  \"s...[0m
+
+[*] [1;34mReviewAgent[0m (iter #2) [1;33m[FINDING_REJECTED][0m: Verdict: REJECTED for /api/debug/config (Medium confidence) — 0 validated so far
+[90m{
+  "verdict": "REJECTED",
+  "confidence": "Medium",
+  "observed_facts": [
+    "The request to GET /api/debug/config with Authorization header 'Bearer alice_token_123' returned HTTP status 200 OK.",
+    "The response body contains a JSON object with keys: database, debug_mode, internal_build, internal_services, server_env, supported_auth.",
+    "The test step executed by the EvidenceCollector actually included the 'Authorization: Bearer alice_token_123' header rather than omitting it as described in the hypothesis."
+  ],
+  "inferred_conclusions": [
+    "The endpoint successfully processes authenticated requests and returns application configuration data.",
+    "Because the test step inadvertently included the authorization token, the evidence fails to demonstrate unauthenticated access."
+  ],
+  "unknown_elements": [
+    "Whether the endpoint actually allows unauthenticated (anonymous) access, as the test step failed to omit the Authorization header."
+  ],
+  "false_positive_analysis": "...[0m
+
+[*] [1;34mHunterAgent[0m (iter #3) [1;33m[HYPOTHESIS_PROPOSED][0m: Iteration 3/12 (25%): Proposing BOLA on /api/v3/secure/profile/1 (Pivoted based on feedback: 'The submitted evidence for the test step included the author...')
+[90m{
+  "hypothesis_id": "c3f89e22-4a5b-4100-bc56-d76e43f112b9",
+  "vuln_class": "BOLA",
+  "endpoint": "/api/v3/secure/profile/1",
+  "title": "Broken Object Level Authorization (BOLA) on User Profile Endpoint",
+  "rationale": "Hypothesis \u2192 The endpoint /api/v3/secure/profile/1 uses a predictable numeric identifier. If proper authorization checks are missing, User B can access User A's profile data simply by substituting the ID. \u2192 Expected vulnerable behavior \u2192 Requesting profile ID 1 using User B's authentication token returns the sensitive profile data of user 1 instead of a 403 Forbidden. \u2192 Evidence required to confirm \u2192 A 200 OK response containing User 1's sensitive profile details when queried with User B's token, compared to a 403 or 404 response.",
+  "test_steps": [
+    {
+      "step_number": 1,
+      "description": "Request profile 1 as user 1 (owner) to obtain baseline data.",
+      "method": "GET",
+      "path": "/api/v3/secure/profile/1",
+      "headers"...[0m
+
+[*] [1;34mEvidenceCollector[0m (iter #3) [1;33m[EVIDENCE_COLLECTED][0m: Executed 2 test steps
+[90m{
+  "all_succeeded": true,
+  "steps": [
+    {
+      "step_number": 1,
+      "description": "Request profile 1 as user 1 (owner) to obtain baseline data.",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/v3/secure/profile/1",
+      "role": "owner",
+      "request_headers": {
+        "Authorization": "Bearer user1_token_abc"
+      },
+      "request_params": {},
+      "status_code": 401,
+      "response_headers": {
+        "server": "Werkzeug/3.0.3 Python/3.10.11",
+        "date": "Thu, 27 Aug 2026 15:01:29 GMT",
+        "content-type": "application/json",
+        "content-length": "30",
+        "connection": "close"
+      },
+      "body": "{\n  \"error\": \"Unauthorized\"\n}\n",
+      "body_length": 30,
+      "success": true
+    },
+    {
+      "step_number": 2,
+      "description": "Request profile 1 as user 2 (unauthorized attacker) to test for BOLA.",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/v3/secure/profile/1",
+      "role": "attacker",
+      "req...[0m
+
+[*] [1;34mReviewAgent[0m (iter #3) [1;33m[FINDING_REJECTED][0m: Verdict: REJECTED for /api/v3/secure/profile/1 (High confidence) — 0 validated so far
+[90m{
+  "verdict": "REJECTED",
+  "confidence": "High",
+  "observed_facts": [
+    "Step 1 (Owner): GET /api/v3/secure/profile/1 with Authorization: Bearer user1_token_abc returned status code 401 with body '{\n  \"error\": \"Unauthorized\"\n}\n'.",
+    "Step 2 (Attacker): GET /api/v3/secure/profile/1 with Authorization: Bearer user2_token_xyz returned status code 401 with body '{\n  \"error\": \"Unauthorized\"\n}\n'."
+  ],
+  "inferred_conclusions": [
+    "The provided test tokens ('user1_token_abc' and 'user2_token_xyz') are invalid, malformed, or not recognized by the authentication backend, causing both requests to fail authentication.",
+    "The endpoint correctly enforces authentication checks, denying access to unauthenticated or invalidly authenticated requests."
+  ],
+  "unknown_elements": [
+    "Whether a valid token for User 1 or User 2 would actually be able to cross privilege boundaries or if authorization checks function correctly under valid authentication.",
+    "The internal i...[0m
+
+[*] [1;34mHunterAgent[0m (iter #4) [1;33m[HYPOTHESIS_PROPOSED][0m: Iteration 4/12 (33%): Proposing BOLA on /api/orders/1 (Pivoted based on feedback: 'The submitted evidence fails to demonstrate a BOLA vulnerabi...')
+[90m{
+  "hypothesis_id": "c3f8e21a-7b94-4b5c-9c12-38d9e7a21f10",
+  "vuln_class": "BOLA",
+  "endpoint": "/api/orders/1",
+  "title": "BOLA on /api/orders/1 allowing unauthorized retrieval of other users' orders",
+  "rationale": "Hypothesis \u2192 /api/orders/1 fails to validate whether the authenticated user owns order 1. Expected vulnerable behavior \u2192 An attacker authenticated with a valid low-privileged user token can access order details belonging to another user by modifying the resource ID. Evidence required \u2192 HTTP 200 OK containing order object with sensitive details when accessed using User 2's valid token instead of User 1's token.",
+  "test_steps": [
+    {
+      "step_number": 1,
+      "description": "Request order 1 as the legitimate owner using valid owner token",
+      "method": "GET",
+      "path": "/api/orders/1",
+      "headers": {
+        "Authorization": "Bearer VALID_OWNER_TOKEN_USER_1",
+        "Accept": "application/json"
+      },
+      "params": {},
+      "json...[0m
+
+[*] [1;34mEvidenceCollector[0m (iter #4) [1;33m[EVIDENCE_COLLECTED][0m: Executed 2 test steps
+[90m{
+  "all_succeeded": true,
+  "steps": [
+    {
+      "step_number": 1,
+      "description": "Request order 1 as the legitimate owner using valid owner token",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/orders/1",
+      "role": "owner",
+      "request_headers": {
+        "Authorization": "Bearer VALID_OWNER_TOKEN_USER_1",
+        "Accept": "application/json"
+      },
+      "request_params": {},
+      "status_code": 401,
+      "response_headers": {
+        "server": "Werkzeug/3.0.3 Python/3.10.11",
+        "date": "Thu, 27 Aug 2026 15:01:37 GMT",
+        "content-type": "application/json",
+        "content-length": "30",
+        "connection": "close"
+      },
+      "body": "{\n  \"error\": \"Unauthorized\"\n}\n",
+      "body_length": 30,
+      "success": true
+    },
+    {
+      "step_number": 2,
+      "description": "Request order 1 as an unauthorized attacker using a valid token from User 2",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/orders/1",
+  ...[0m
+
+[*] [1;34mReviewAgent[0m (iter #4) [1;33m[FINDING_REJECTED][0m: Verdict: REJECTED for /api/orders/1 (High confidence) — 0 validated so far
+[90m{
+  "verdict": "REJECTED",
+  "confidence": "High",
+  "observed_facts": [
+    "GET request to /api/orders/1 with Authorization: Bearer VALID_OWNER_TOKEN_USER_1 returned HTTP 401 Unauthorized with body {\"error\": \"Unauthorized\"}.",
+    "GET request to /api/orders/1 with Authorization: Bearer VALID_OWNER_TOKEN_USER_2 returned HTTP 401 Unauthorized with body {\"error\": \"Unauthorized\"}.",
+    "Both requests yielded identical response status codes (401) and identical response bodies."
+  ],
+  "inferred_conclusions": [
+    "The tokens used in the test steps (VALID_OWNER_TOKEN_USER_1 and VALID_ATTACKER_TOKEN_USER_2) are either invalid, expired, or improperly formatted placeholders that fail authentication checks.",
+    "The endpoint /api/orders/1 successfully enforces authentication requirements, rejecting unauthenticated or improperly authenticated requests with an HTTP 401 status code."
+  ],
+  "unknown_elements": [
+    "Whether a properly generated and valid user token would be able to ...[0m
+
+[*] [1;34mHunterAgent[0m (iter #5) [1;33m[HYPOTHESIS_PROPOSED][0m: Iteration 5/12 (41%): Proposing AuthBypass on /api/admin/ (Pivoted based on feedback: 'The report fails to demonstrate a BOLA vulnerability because...')
+[90m{
+  "hypothesis_id": "c3f8e21a-7b9d-4c3e-8f2a-1b4d6e8f9a2c",
+  "vuln_class": "AuthBypass",
+  "endpoint": "/api/admin/",
+  "title": "Broken Function Level Authorization / Auth Bypass on Administrative Panel",
+  "rationale": "Hypothesis \u2192 The administrative endpoint /api/admin/ fails to enforce proper role-based access control or relies solely on weak header checks. Expected vulnerable behavior \u2192 A standard user or unauthenticated client can access administrative functionalities or panel views without an administrative session. Evidence required \u2192 HTTP 200 OK response containing administrative dashboard components or data compared to a 401/403 response for unprivileged requests.",
+  "test_steps": [
+    {
+      "step_number": 1,
+      "description": "Request administrative route as an unprivileged or unauthenticated user to establish baseline security response.",
+      "method": "GET",
+      "path": "/api/admin/",
+      "headers": {
+        "Accept": "application/json"
+    ...[0m
+
+[*] [1;34mEvidenceCollector[0m (iter #5) [1;33m[EVIDENCE_COLLECTED][0m: Executed 2 test steps
+[90m{
+  "all_succeeded": true,
+  "steps": [
+    {
+      "step_number": 1,
+      "description": "Request administrative route as an unprivileged or unauthenticated user to establish baseline security response.",
+      "method": "GET",
+      "url": "http://127.0.0.1:5000/api/admin/",
+      "role": "admin",
+      "request_headers": {
+        "Authorization": "Bearer admin_master_token_789",
+        "Accept": "application/json"
+      },
+      "request_params": {},
+      "status_code": 404,
+      "response_headers": {
+        "server": "Werkzeug/3.0.3 Python/3.10.11",
+        "date": "Thu, 27 Aug 2026 15:01:45 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "207",
+        "connection": "close"
+      },
+      "body": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+      "body_length": 207,
+     ...[0m
+
+[*] [1;34mReviewAgent[0m (iter #5) [1;33m[FINDING_REJECTED][0m: Verdict: REJECTED for /api/admin/ (Medium confidence) — 0 validated so far
+[90m{
+  "verdict": "REJECTED",
+  "confidence": "Medium",
+  "observed_facts": [
+    "Step 1 (Control Request with admin token): GET /api/admin/ returned HTTP 404 Not Found with a body length of 207 bytes.",
+    "Step 2 (Test Request with injection headers): GET /api/admin/ returned HTTP 404 Not Found with a body length of 207 bytes.",
+    "Both requests resulted in identical responses indicating the requested URL was not found on the server."
+  ],
+  "inferred_conclusions": [
+    "The endpoint `/api/admin/` does not exist on the target server or is not routed correctly in the current application state.",
+    "The tested header injection techniques (`X-Original-URL`, `X-Custom-IP-Authorization`) did not alter routing or bypass authentication because the resource itself is missing (HTTP 404)."
+  ],
+  "unknown_elements": [
+    "Whether `/api/admin/` exists under a different path or suffix.",
+    "Whether the application implements custom routing middleware that parses `X-Original-URL` under oth...[0m
+
+Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.
+llm_rate_limited_backing_off | {"model": "gemini-3.5-flash-lite", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.5-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.6-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.7-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-flash-latest", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.5-flash-lite", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.5-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.6-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.7-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-flash-latest", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.5-flash-lite", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.5-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.6-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-3.7-flash", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+llm_rate_limited_backing_off | {"model": "gemini-flash-latest", "error": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and "}
+Traceback (most recent call last):
+  File "E:\Ai_bugbounty\run_live_swarm.py", line 161, in <module>
+    asyncio.run(main())
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "E:\Ai_bugbounty\run_live_swarm.py", line 123, in main
+    report = await orchestrator.run()
+  File "E:\Ai_bugbounty\app\agents\orchestrator.py", line 144, in run
+    hypothesis = await hunter_agent.run(
+  File "E:\Ai_bugbounty\app\agents\hunter.py", line 155, in run
+    raw_text = await agenerate_structured_content(
+  File "E:\Ai_bugbounty\app\agents\llm_client.py", line 187, in agenerate_structured_content
+    return await asyncio.to_thread(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "E:\Ai_bugbounty\app\agents\llm_client.py", line 176, in generate_structured_content
+    raise last_error or RuntimeError("All Gemini models in cascade failed to return text.")
+  File "E:\Ai_bugbounty\app\agents\llm_client.py", line 117, in generate_structured_content
+    resp = client.models.generate_content(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\models.py", line 6550, in generate_content
+    response = self._generate_content(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\models.py", line 4978, in _generate_content
+    response = self._api_client.request(
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\_api_client.py", line 1747, in request
+    response = self._request(http_request, http_options, stream=False)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\_api_client.py", line 1534, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 470, in __call__
+    do = self.iter(retry_state=retry_state)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 371, in iter
+    result = action(retry_state)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\tenacity\__init__.py", line 473, in __call__
+    result = fn(*args, **kwargs)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\_api_client.py", line 1511, in _request_once
+    errors.APIError.raise_for_response(response)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\errors.py", line 173, in raise_for_response
+    cls.raise_error(response.status_code, response_json, response)
+  File "C:\Users\KOKMAN\AppData\Local\Programs\Python\Python310\lib\site-packages\google\genai\errors.py", line 202, in raise_error
+    raise ClientError(status_code, response_json, response)
+google.genai.errors.ClientError: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.7-flash\nPlease retry in 47.319799535s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-3.7-flash'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '47s'}]}}

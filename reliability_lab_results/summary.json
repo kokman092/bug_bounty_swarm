@@ -1,9 +1,9 @@
 {
   "total": 3,
-  "crashed": 3,
-  "pivots": 0,
+  "crashed": 1,
+  "pivots": 2,
   "empty": 0,
   "straight": 0,
-  "avg_duration": null,
-  "verdict": "NOT DEMO-READY: no run showed a reject->pivot sequence. Revisit hunter.py hypothesis ordering or lab endpoint discoverability."
+  "avg_duration": 105.82499999999999,
+  "verdict": "DEMO-READY: pivot sequence appears reliably."
 }
