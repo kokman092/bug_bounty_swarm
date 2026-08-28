@@ -335,6 +335,8 @@ export default function App() {
     setErrorMsg(null);
     setBurpFile(null);
     setBurpFileContent(null);
+  };
+
   const handleStopSwarm = async () => {
     if (investigationId) {
       try {
@@ -352,6 +354,7 @@ export default function App() {
 
   const validatedFindings = findings.filter(f => f.verdict === "VALIDATED" || f.status === "VALIDATED");
   const rejectedFindings = findings.filter(f => f.verdict === "REJECTED" || f.status === "REJECTED");
+
 
 
   return (
