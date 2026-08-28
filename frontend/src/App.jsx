@@ -72,30 +72,12 @@ export default function App() {
   const [burpFileContent, setBurpFileContent] = useState(null);
   const [burpFileType, setBurpFileType] = useState(null);
 
-  const [investigationId, setInvestigationId] = useState(() => localStorage.getItem("swarm_active_investigation_id") || null);
-  const [status, setStatus] = useState(() => localStorage.getItem("swarm_status") || "IDLE");
-  const [currentPhase, setCurrentPhase] = useState(() => localStorage.getItem("swarm_current_phase") || "RECON");
-  const [events, setEvents] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("swarm_events") || "[]");
-    } catch {
-      return [];
-    }
-  });
-  const [findings, setFindings] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("swarm_findings") || "[]");
-    } catch {
-      return [];
-    }
-  });
-  const [report, setReport] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("swarm_report") || "null");
-    } catch {
-      return null;
-    }
-  });
+  const [investigationId, setInvestigationId] = useState(null);
+  const [status, setStatus] = useState("IDLE");
+  const [currentPhase, setCurrentPhase] = useState("RECON");
+  const [events, setEvents] = useState([]);
+  const [findings, setFindings] = useState([]);
+  const [report, setReport] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isStarting, setIsStarting] = useState(false);
   const [activeTab, setActiveTab] = useState("telemetry"); // 'telemetry' | 'findings' | 'report' | 'registry'
@@ -159,41 +141,7 @@ export default function App() {
     localStorage.setItem("swarm_attacker_token", attackerToken);
   }, [attackerToken]);
 
-  useEffect(() => {
-    if (investigationId) {
-      localStorage.setItem("swarm_active_investigation_id", investigationId);
-    }
-  }, [investigationId]);
-
-  useEffect(() => {
-    localStorage.setItem("swarm_status", status);
-  }, [status]);
-
-  useEffect(() => {
-    localStorage.setItem("swarm_current_phase", currentPhase);
-  }, [currentPhase]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("swarm_events", JSON.stringify(events.slice(-200)));
-    } catch {}
-  }, [events]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("swarm_findings", JSON.stringify(findings));
-    } catch {}
-  }, [findings]);
-
-  useEffect(() => {
-    try {
-      if (report) {
-        localStorage.setItem("swarm_report", JSON.stringify(report));
-      }
-    } catch {}
-  }, [report]);
-
-  // Auto-reconnect or restore on mount / page refresh
+  // Auto-reconnect or restore on mount only if confirmed running on backend
   useEffect(() => {
     const savedId = localStorage.getItem("swarm_active_investigation_id");
     if (!savedId) return;
@@ -201,20 +149,26 @@ export default function App() {
     const checkAndResume = async () => {
       try {
         const inv = await api.getInvestigation(savedId);
-        if (inv) {
-          if (inv.status === "RUNNING" || inv.status === "AUTHORIZED") {
-            setStatus("RUNNING");
-            if (inv.current_phase) setCurrentPhase(inv.current_phase);
-            connectSSE(savedId);
-          } else if (inv.status === "COMPLETED") {
-            setStatus("COMPLETED");
-            loadReport(savedId);
-          } else if (inv.status === "FAILED") {
-            setStatus("FAILED");
-          }
+        if (inv && (inv.status === "RUNNING" || inv.status === "AUTHORIZED")) {
+          setInvestigationId(savedId);
+          setStatus("RUNNING");
+          if (inv.current_phase) setCurrentPhase(inv.current_phase);
+          connectSSE(savedId);
+        } else if (inv && inv.status === "COMPLETED") {
+          setInvestigationId(savedId);
+          setStatus("COMPLETED");
+          loadReport(savedId);
+        } else {
+          // Stale investigation - reset to clean idle state
+          localStorage.removeItem("swarm_active_investigation_id");
+          localStorage.removeItem("swarm_status");
+          setStatus("IDLE");
         }
       } catch (err) {
-        console.warn("Could not resume investigation state:", err);
+        // Backend not reachable or inv not found - reset to clean idle state
+        localStorage.removeItem("swarm_active_investigation_id");
+        localStorage.removeItem("swarm_status");
+        setStatus("IDLE");
       }
     };
 
