@@ -335,10 +335,24 @@ export default function App() {
     setErrorMsg(null);
     setBurpFile(null);
     setBurpFileContent(null);
+  const handleStopSwarm = async () => {
+    if (investigationId) {
+      try {
+        await api.cancelInvestigation(investigationId);
+      } catch (err) {
+        console.warn("Cancel request notice:", err);
+      }
+    }
+    if (sseClientRef.current) {
+      sseClientRef.current.disconnect?.();
+    }
+    setStatus("IDLE");
+    localStorage.setItem("swarm_status", "IDLE");
   };
 
   const validatedFindings = findings.filter(f => f.verdict === "VALIDATED" || f.status === "VALIDATED");
   const rejectedFindings = findings.filter(f => f.verdict === "REJECTED" || f.status === "REJECTED");
+
 
   return (
     <div className="min-h-screen bg-[#050811] text-zinc-100 antialiased selection:bg-indigo-500 selection:text-white flex flex-col font-sans">
@@ -465,28 +479,34 @@ export default function App() {
                 />
               </div>
 
-              {/* Launch / Running Action Button */}
-              <button
-                type="submit"
-                disabled={status === "RUNNING" || isStarting || !targetUrl.trim()}
-                className={`w-full md:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider flex items-center justify-center gap-2 uppercase transition-all shadow-xl ${
-                  status === "RUNNING" || isStarting
-                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5"
-                    : "bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:via-purple-500 hover:to-cyan-500 text-white shadow-indigo-500/25 active:scale-95"
-                }`}
-              >
-                {status === "RUNNING" || isStarting ? (
-                  <>
+              {/* Launch / Stop Action Button */}
+              {status === "RUNNING" || isStarting ? (
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <div className="px-5 py-3.5 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 text-cyan-300 text-xs font-bold font-mono flex items-center gap-2 shadow-lg flex-1 md:flex-initial justify-center">
                     <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-                    <span>Swarm Investigating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4 text-cyan-300" />
-                    <span>Launch Swarm</span>
-                  </>
-                )}
-              </button>
+                    <span>Investigating...</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleStopSwarm}
+                    className="px-4 py-3.5 rounded-2xl bg-red-600/80 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition shadow-lg shadow-red-500/20 active:scale-95 flex-1 md:flex-initial justify-center"
+                    title="Stop active swarm investigation"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Stop Swarm</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isStarting || !targetUrl.trim()}
+                  className="w-full md:w-auto px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider flex items-center justify-center gap-2 uppercase transition-all shadow-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:via-purple-500 hover:to-cyan-500 text-white shadow-indigo-500/25 active:scale-95"
+                >
+                  <Zap className="w-4 h-4 text-cyan-300" />
+                  <span>Launch Swarm</span>
+                </button>
+              )}
+
             </div>
 
             {/* Quick Preset Targets & Session Vault Toggle */}
