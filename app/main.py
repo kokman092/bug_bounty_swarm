@@ -98,7 +98,8 @@ app.include_router(internal_inv_router)
 async def health_check() -> dict[str, str]:
     settings = get_settings()
     return {
-        "status": "healthy",
+        "status": "ok",
+        "health": "healthy",
         "version": settings.swarm_version,
         "service": "bugbounty-swarm",
         "cloud_provider": "Google Cloud Run",
@@ -106,6 +107,7 @@ async def health_check() -> dict[str, str]:
         "ai_engine": settings.gemini_model,
         "track": "The Fortified Enterprise Fleet",
     }
+
 
 
 # ── Config Endpoint (Public — used by frontend at boot time) ──────────────────

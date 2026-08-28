@@ -173,6 +173,14 @@ class ScopeEnforcingHttpClient:
         # ── Pre-request scope check ────────────────────────────────────────────
         await self._validate_url(url)
 
+        # ── Policy Engine Safety & Rate Limit Check ────────────────────────────
+        from app.core.policy_engine import get_policy_engine
+        policy = get_policy_engine()
+        policy.validate_action_safety(method, url, payload=json_body or data)
+        await policy.throttle(url)
+        policy.track_request(self.investigation_id, method, url)
+
+
         logger.debug(
             "http_request",
             method=method,
@@ -189,6 +197,10 @@ class ScopeEnforcingHttpClient:
             json=json_body,
             headers=headers or {},
         )
+
+        # Record throttle signal if server returned 429 / 503
+        policy.record_throttle_signal(url, response.status_code)
+
 
         # ── Redirect handling ──────────────────────────────────────────────────
         if response.is_redirect and "location" in response.headers:
@@ -238,7 +250,10 @@ class ScopeEnforcingHttpClient:
         normalized = normalize_url(url)
 
         # 2. Private IP check
-        validate_host_not_private(normalized.host)
+        settings = get_settings()
+        allow_lab = settings.is_development and settings.allow_local_lab_targets
+        validate_host_not_private(normalized.host, allow_local_lab=allow_lab)
+
 
         # 3. DNS rebinding check (re-resolve and compare to original)
         if normalized.host in self._resolved_ips:

@@ -69,16 +69,35 @@ class ScopeViolationError(SwarmBaseException):
     http_status = 403
     error_code = "scope_violation"
 
-    def __init__(self, url: str, investigation_id: str) -> None:
+    def __init__(self, url: str, investigation_id: str = "") -> None:
         self.url = url
         self.investigation_id = investigation_id
         super().__init__(
             f"URL '{url}' is outside the authorized scope for "
-            f"investigation '{investigation_id}'"
+            f"investigation '{investigation_id}'" if investigation_id else f"URL '{url}' is outside authorized scope"
         )
 
 
+class DestructiveActionError(SwarmBaseException):
+    """Raised when an agent attempts a destructive or prohibited test action."""
+    http_status = 403
+    error_code = "destructive_action_blocked"
+
+    def __init__(self, reason: str = "Action blocked by safety policy") -> None:
+        super().__init__(reason)
+
+
+class RateLimitExceededError(SwarmBaseException):
+    """Raised when target rate limit is exceeded."""
+    http_status = 429
+    error_code = "rate_limit_exceeded"
+
+    def __init__(self, message: str = "Target rate limit exceeded") -> None:
+        super().__init__(message)
+
+
 # ── Investigation Lifecycle ───────────────────────────────────────────────────
+
 
 class InvestigationNotFoundError(SwarmBaseException):
     """

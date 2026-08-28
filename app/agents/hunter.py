@@ -172,52 +172,57 @@ Focus on EXPLOITABLE authorization vulnerabilities, not noise (no missing header
         if not data.get("hypothesis_id"):
             data["hypothesis_id"] = str(uuid.uuid4())
 
-        # If data is missing fields due to unexpected output
-        if not data.get("endpoint") or not data.get("title"):
-            priority_eps = attack_surface.get("priority_endpoints", [])
-            for ep_info in priority_eps:
+        # Ensure proposed endpoint is in confirmed discovered attack surface
+        discovered_paths = {
+            (ep.get("path") or ep.get("endpoint") or "").split("?")[0].rstrip("/")
+            for ep in attack_surface.get("endpoints", []) + attack_surface.get("priority_endpoints", [])
+            if (ep.get("path") or ep.get("endpoint"))
+        }
+        proposed_ep = (data.get("endpoint") or "").split("?")[0].rstrip("/")
+        if discovered_paths and proposed_ep not in discovered_paths and proposed_ep not in ("/", ""):
+            # Fallback to untested discovered endpoint
+            matched = False
+            for ep_info in attack_surface.get("priority_endpoints", []) + attack_surface.get("endpoints", []):
                 ep_path = ep_info.get("endpoint") or ep_info.get("path")
-                tag = f"BOLA:{ep_path}"
-                if tag not in already_proposed:
-                    return Hypothesis(
-                        hypothesis_id=str(uuid.uuid4()),
-                        vuln_class=VulnClass.BOLA,
-                        endpoint=ep_path,
-                        title=f"Verify Authorization Boundary on {ep_path}",
-                        rationale=f"Dynamic verification of access control on {ep_path}",
-                        test_steps=[
-                            TestStep(
-                                step_number=1,
-                                description=f"Control: Request {ep_path} as owner",
-                                method=ep_info.get("method", "GET"),
-                                path=ep_path,
-                                headers={"Authorization": "Bearer alice_token_123"},
-                                params={},
-                                json_body=None,
-                            ),
-                            TestStep(
-                                step_number=2,
-                                description=f"Test: Request {ep_path} as unauthorized attacker",
-                                method=ep_info.get("method", "GET"),
-                                path=ep_path,
-                                headers={"Authorization": "Bearer bob_token_456"},
-                                params={},
-                                json_body=None,
-                            ),
-                        ],
-                        no_further_hypotheses=False,
-                    )
-            return Hypothesis(
-                hypothesis_id=str(uuid.uuid4()),
-                vuln_class=VulnClass.OTHER,
-                endpoint="/",
-                title="Assessment Complete",
-                rationale="All attack surfaces investigated",
-                test_steps=[],
-                no_further_hypotheses=True,
-            )
+                if ep_path and f"BOLA:{ep_path}" not in already_proposed:
+                    data["endpoint"] = ep_path
+                    data["title"] = f"Verify Authorization Boundary on {ep_path}"
+                    data["rationale"] = f"Verification of access control on confirmed endpoint {ep_path}"
+                    data["test_steps"] = [
+                        {
+                            "step_number": 1,
+                            "description": f"Control: Request {ep_path} as owner",
+                            "method": ep_info.get("method", "GET"),
+                            "path": ep_path,
+                            "headers": {"Authorization": "Bearer alice_token_123"},
+                            "params": {},
+                            "json_body": None,
+                        },
+                        {
+                            "step_number": 2,
+                            "description": f"Test: Request {ep_path} as unauthorized attacker",
+                            "method": ep_info.get("method", "GET"),
+                            "path": ep_path,
+                            "headers": {"Authorization": "Bearer bob_token_456"},
+                            "params": {},
+                            "json_body": None,
+                        },
+                    ]
+                    matched = True
+                    break
+            if not matched:
+                return Hypothesis(
+                    hypothesis_id=str(uuid.uuid4()),
+                    vuln_class=VulnClass.OTHER,
+                    endpoint="/",
+                    title="Assessment Complete",
+                    rationale="All confirmed attack surface endpoints investigated",
+                    test_steps=[],
+                    no_further_hypotheses=True,
+                )
 
         # Normalize vuln_class enum cleanly
+
         v_class_str = str(data.get("vuln_class", "OTHER")).upper().replace(" ", "").replace("_", "")
         matched_enum = VulnClass.OTHER
         for member in VulnClass:

@@ -47,7 +47,10 @@ class AuthorizationService:
         normalized = normalize_url(target_url)
 
         # Step 2: SSRF & Cloud Metadata Guardrail check (Blocks 169.254.169.254, AWS/GCP metadata)
-        validate_host_not_private(normalized.host)
+        from app.core.config import get_settings
+        settings = get_settings()
+        allow_lab = settings.is_development and settings.allow_local_lab_targets
+        validate_host_not_private(normalized.host, allow_local_lab=allow_lab)
 
         # Step 3: Dynamically register the user-provided target for this investigation session
         dynamic_target = AuthorizedTarget(
@@ -80,9 +83,14 @@ class AuthorizationService:
                 reason=f"URL normalization failed: {exc.message}",
             )
 
+        from app.core.config import get_settings
+        settings = get_settings()
+        allow_lab = settings.is_development and settings.allow_local_lab_targets
+
         try:
-            validate_host_not_private(normalized.host)
+            validate_host_not_private(normalized.host, allow_local_lab=allow_lab)
         except PrivateIPAccessError as exc:
+
             return ScopeResult(
                 allowed=False,
                 reason=f"Private/internal IP access blocked: {exc.message}",
@@ -98,6 +106,8 @@ class AuthorizationService:
                 reason="URL is outside the authorized scope for this investigation",
                 normalized_url=normalized.canonical,
             )
+
+
 
         return ScopeResult(
             allowed=True,
@@ -124,6 +134,12 @@ class AuthorizationService:
         if url.scheme not in target.allowed_schemes:
             return False
 
+        # Check out-of-scope exclusions
+        if target.out_of_scope_patterns:
+            for oos in target.out_of_scope_patterns:
+                if oos in url.canonical or oos in url.path or oos == url.host:
+                    return False
+
         if target.scope_type == ScopeType.EXACT:
             try:
                 target_normalized = normalize_url(target.scope_value)
@@ -139,8 +155,34 @@ class AuthorizationService:
                 port_match = (url.scheme in target.allowed_schemes)
             return host_match and path_match and port_match
 
+        elif target.scope_type == ScopeType.PATH_PREFIX:
+            try:
+                target_normalized = normalize_url(target.url_normalized)
+            except URLNormalizationError:
+                return False
+            host_match = (url.host == target_normalized.host)
+            port_match = (url.port == target_normalized.port) if url.scheme == target_normalized.scheme else (url.scheme in target.allowed_schemes)
+            if not (host_match and port_match):
+                return False
+
+            prefix = target.scope_value.strip()
+            if prefix.startswith(("http://", "https://")):
+                try:
+                    prefix = normalize_url(prefix).path
+                except URLNormalizationError:
+                    pass
+            if not prefix.startswith("/"):
+                prefix = f"/{prefix}"
+
+            clean_prefix = prefix.rstrip("/")
+            if not clean_prefix:
+                return True
+            # Prevent prefix confusion (e.g. /api must not match /api-admin or /apix)
+            return url.path == clean_prefix or url.path.startswith(f"{clean_prefix}/")
+
         elif target.scope_type == ScopeType.SUBDOMAIN_WILDCARD:
             target_host = target.scope_value.lstrip(".").lower()
             return url.host == target_host or url.host.endswith(f".{target_host}")
 
         return False
+

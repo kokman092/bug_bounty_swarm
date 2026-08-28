@@ -147,7 +147,7 @@ async def scrape_links_and_forms(target_url: str, investigation_id: str) -> dict
                     if not STATIC_EXTS.search(path):
                         discovered_paths.add(path)
 
-            # 6. SPA JavaScript Bundle Analysis (e.g. Angular, React, Vue, Svelte, Next.js bundles)
+            # 6. SPA JavaScript Bundle Analysis (e.g. Angular, React, Vue, Svelte, Next.js, Juice Shop)
             for script_src in scripts:
                 script_url = urljoin(root_url, script_src)
                 try:
@@ -172,11 +172,22 @@ async def scrape_links_and_forms(target_url: str, investigation_id: str) -> dict
                 except Exception as exc:
                     logger.debug("script_fetch_skipped", script=script_src, error=str(exc))
 
+            # Compute SPA root fingerprint
+            from app.discovery.response_classifier import ResponseClassifier
+            root_fp = ResponseClassifier.compute_spa_fingerprint(
+                resp.status_code, dict(resp.headers), html
+            )
+
             return {
                 "status": "success",
                 "paths": sorted(list(discovered_paths))[:100],
                 "forms": forms[:10],
                 "scripts": scripts,
+                "spa_fingerprint": {
+                    "content_length": root_fp.content_length,
+                    "title": root_fp.title,
+                    "app_markers": root_fp.app_markers,
+                },
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
@@ -185,10 +196,12 @@ async def scrape_links_and_forms(target_url: str, investigation_id: str) -> dict
 async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict[str, Any]:
     """
     Actively probe common REST API path prefixes to discover deep endpoints
-    not linked from the root page. Handles 401/403 positive signals and detects SPA fallbacks.
+    not linked from the root page. Uses ResponseClassifier to filter out SPA fallbacks.
     """
     base = normalize_url(target_url)
     root = f"{base.scheme}://{base.host_with_port}"
+
+    from app.discovery.response_classifier import ResponseClassifier, ResponseKind
 
     # Common API paths to probe
     PROBE_PATHS = [
@@ -225,17 +238,40 @@ async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict
 
     discovered = []
     async with ScopeEnforcingHttpClient(investigation_id) as client:
+        # Step 1: Capture root page fingerprint
+        classifier = ResponseClassifier()
+        try:
+            root_resp = await client.get(f"{root}/")
+            if root_resp.status_code == 200:
+                root_text = client.get_response_text_safe(root_resp)
+                root_fp = ResponseClassifier.compute_spa_fingerprint(
+                    root_resp.status_code, dict(root_resp.headers), root_text
+                )
+                classifier = ResponseClassifier(root_fingerprint=root_fp)
+        except Exception:
+            pass
+
+        # Step 2: Probe paths and classify
         for path in PROBE_PATHS:
             probe_url = f"{root}{path}"
             try:
                 resp = await client.get(probe_url)
                 if resp.status_code in (200, 201, 301, 302, 400, 401, 403, 405):
-                    body_preview = client.get_response_text_safe(resp)[:500]
-                    
-                    # Detect SPA HTML fallback (returning 200 index.html on missing routes)
-                    is_spa_html = "<!doctype html>" in body_preview.lower() or "<html" in body_preview.lower()
-                    if resp.status_code == 200 and is_spa_html and path not in ("/", "/docs", "/swagger"):
-                        # Skip false positive SPA fallback routes
+                    body_text = client.get_response_text_safe(resp)
+                    classification = classifier.classify_response(
+                        url_or_path=path,
+                        status_code=resp.status_code,
+                        headers=dict(resp.headers),
+                        body_text=body_text,
+                    )
+
+                    # Strictly ignore SPA fallbacks, redirects, and error pages
+                    if classification.response_kind == ResponseKind.SPA_FALLBACK:
+                        logger.info("deep_probe_spa_fallback_skipped", path=path, reason=classification.reason)
+                        continue
+
+                    if resp.status_code == 200 and not classification.testable_as_api and path not in ("/", "/docs", "/swagger"):
+                        # If 200 returned but not JSON API or valid document, skip
                         continue
 
                     discovered.append({
@@ -243,9 +279,10 @@ async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict
                         "status_code": resp.status_code,
                         "content_type": resp.headers.get("content-type", ""),
                         "requires_auth": resp.status_code in (401, 403),
-                        "body_preview": body_preview,
+                        "response_kind": classification.response_kind.value,
+                        "body_preview": body_text[:500],
                     })
-                    logger.info("deep_probe_hit", path=path, status=resp.status_code)
+                    logger.info("deep_probe_hit", path=path, status=resp.status_code, kind=classification.response_kind.value)
             except Exception as exc:
                 logger.debug("deep_probe_skip", path=path, error=str(exc))
 
@@ -255,5 +292,6 @@ async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict
         "discovered_count": len(discovered),
         "endpoints": discovered,
     }
+
 
 

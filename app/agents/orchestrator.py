@@ -21,6 +21,7 @@ from app.agents.hunter import HunterAgent
 from app.agents.recon import ReconAgent
 from app.agents.reporter import ReportAgent
 from app.agents.reviewer import ReviewAgent
+from app.core.agent_state import AgentState, get_agent_state
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.events.schemas import EventType
@@ -46,6 +47,7 @@ class AgentOrchestrator:
     ) -> None:
         self.investigation_id = investigation_id
         self.target_url = target_url
+        self.state: AgentState = get_agent_state(investigation_id, target_url)
         self._event_service = event_service or EventService()
         self._finding_service = finding_service or FindingService()
         self._report_service = report_service or ReportService()
@@ -66,6 +68,16 @@ class AgentOrchestrator:
         recon_agent = ReconAgent(self.investigation_id, self.target_url)
         recon_result = await recon_agent.run()
 
+        # Register discovered endpoints into canonical AgentState
+        for ep in recon_result.get("endpoints", []):
+            self.state.register_endpoint(
+                path=ep.get("path", "/"),
+                method=ep.get("method", "GET"),
+                parameters=ep.get("parameters", []),
+                requires_auth=ep.get("requires_auth", False),
+            )
+        self.state.discovered_assets = recon_result.get("technologies", [])
+
         await self._event_service.emit_event(
             investigation_id=self.investigation_id,
             phase=InvestigationPhase.RECON.value,
@@ -74,6 +86,7 @@ class AgentOrchestrator:
             input_summary="Reconnaissance completed",
             payload={"endpoints_discovered": len(recon_result.get("endpoints", [])), "summary": recon_result.get("recon_summary")},
         )
+
 
         # ── Context Trim 1: Summarize recon for Attack Surface ─────────────────
         trimmed_recon = {
@@ -96,33 +109,85 @@ class AgentOrchestrator:
         surface_agent = AttackSurfaceAgent(self.investigation_id)
         attack_surface = await surface_agent.run(trimmed_recon)
 
+        # ── Phase 2.5: Deterministic OWASP Test Execution (AttackPlanner & Dispatcher) ──
+        from app.intelligence.attack_planner import AttackPlanner
+        from app.testing.dispatcher import TestDispatcher
+        from app.validation.pipeline import ValidationPipeline
+
+        planner = AttackPlanner(self.investigation_id, self.target_url, self.state)
+        test_plan = planner.generate_test_plan()
+        dispatcher = TestDispatcher(self.investigation_id, self.target_url, self.state)
+        val_pipeline = ValidationPipeline(self.investigation_id, self.target_url, self._finding_service)
+
         await self._event_service.emit_event(
             investigation_id=self.investigation_id,
             phase=InvestigationPhase.ATTACK_SURFACE.value,
-            event_type=EventType.AGENT_COMPLETED,
-            agent_name="AttackSurfaceAgent",
-            input_summary="Attack surface analyzed",
-            payload={"priority_vectors": attack_surface.get("priority_endpoints", [])},
+            event_type=EventType.PHASE_STARTED,
+            agent_name="AttackPlanner",
+            input_summary=f"Generated deterministic OWASP test plan with {len(test_plan.planned_tests)} test cases",
+            payload={"total_planned": len(test_plan.planned_tests), "top_priorities": [t.priority for t in test_plan.planned_tests[:5]]},
         )
 
-        # ── Phase 3: Finding Loop (Hunter -> Evidence -> Reviewer) ────────────
+        # Execute high-priority deterministic test cases
+        validated_findings_context: list[dict[str, Any]] = []
+        tested_vuln_classes: list[str] = []
+
+        for planned_test in test_plan.get_highest_priority_tests(limit=settings.max_loop_iterations * 2):
+            dispatch_result = await dispatcher.dispatch(planned_test)
+            vc = planned_test.test_class.upper()
+            if vc not in tested_vuln_classes:
+                tested_vuln_classes.append(vc)
+
+            if dispatch_result.has_signal:
+                for r in dispatch_result.raw_results:
+                    # Pass through unified ValidationPipeline
+                    val_res = await val_pipeline.validate_signal(r)
+                    if val_res.is_confirmed:
+                        validated_findings_context.append({
+                            "vuln_class": r.vuln_class.value if hasattr(r.vuln_class, "value") else str(r.vuln_class),
+                            "title": r.test_name,
+                            "endpoint": r.endpoint,
+                            "evidence_summary": "; ".join(r.observations),
+                            "raw_body_sample": str(r.raw_evidence)[:300],
+                        })
+                        await self._event_service.emit_event(
+                            investigation_id=self.investigation_id,
+                            phase=InvestigationPhase.LOOP.value,
+                            event_type=EventType.FINDING_VALIDATED,
+                            agent_name=planned_test.tester_name,
+                            input_summary=f"OWASP Finding Confirmed (Score {val_res.confidence_score}/100): {r.test_name}",
+                            payload=r.raw_evidence,
+                            correlation_id=val_res.test_id,
+                        )
+                    else:
+                        await self._event_service.emit_event(
+                            investigation_id=self.investigation_id,
+                            phase=InvestigationPhase.LOOP.value,
+                            event_type=EventType.FINDING_REJECTED,
+                            agent_name=planned_test.tester_name,
+                            input_summary=f"Signal Unconfirmed ({val_res.status.value}, Score {val_res.confidence_score}/100): {r.test_name}",
+                            payload={"reasons": [r.message for r in val_res.rejection_reasons]},
+                            correlation_id=val_res.test_id,
+                        )
+
+
+        # ── Phase 3: Adaptive Finding Loop (Hunter -> Evidence -> Reviewer) ───
         await self._event_service.emit_event(
             investigation_id=self.investigation_id,
             phase=InvestigationPhase.LOOP.value,
             event_type=EventType.PHASE_STARTED,
             agent_name="HunterAgent",
-            input_summary="Starting iterative vulnerability hypothesis & validation loop",
+            input_summary="Starting adaptive multi-step attack chaining & hypothesis validation loop",
         )
 
         hunter_agent = HunterAgent(self.investigation_id)
         evidence_collector = EvidenceCollector(self.investigation_id, self.target_url)
         review_agent = ReviewAgent(self.investigation_id)
 
-        already_proposed: list[str] = []
+        already_proposed: list[str] = [f"{t.vuln_class}:{t.endpoint}" for t in self.state.confirmed_findings]
         review_feedback: str | None = None
-        validated_findings_context: list[dict[str, Any]] = []
-        tested_vuln_classes: list[str] = []
         max_iters = settings.max_loop_iterations
+
 
         for iteration in range(1, max_iters + 1):
             progress_pct = int((iteration / max_iters) * 100)
@@ -226,27 +291,33 @@ class AgentOrchestrator:
             else:
                 conf_val = Confidence.MEDIUM
 
-            finding = Finding(
-                finding_id=hypothesis.hypothesis_id,
-                investigation_id=self.investigation_id,
-                hypothesis_id=hypothesis.hypothesis_id,
-                title=hypothesis.title,
+            test_res = TestResult(
+                test_name=hypothesis.title,
+                target_url=f"{self.target_url}{hypothesis.endpoint}",
                 endpoint=hypothesis.endpoint,
+                method=step_m,
                 vuln_class=hypothesis.vuln_class,
                 status=verdict,
                 confidence=conf_val,
                 severity=sev_val,
-                iterations_used=iteration,
-                evidence_summary=review.get("reason", ""),
-                raw_evidence_inline=evidence,
-                review_feedback=review.get("reason"),
-                remediation_guidance=review.get("remediation_guidance"),
+                reproducible=verdict == FindingStatus.VALIDATED,
+                evidence_score=10 if verdict == FindingStatus.VALIDATED else 4,
+                observations=[review.get("reason", "")],
+                raw_evidence=evidence,
+                remediation=review.get("remediation_guidance", ""),
+            )
+            val_res = await val_pipeline.validate_signal(test_res)
+
+            # Record test execution and finding in canonical AgentState
+            self.state.record_test_execution(
+                endpoint=hypothesis.endpoint,
+                method=step_m,
+                vuln_class=hypothesis.vuln_class.value,
+                status=FindingStatus.VALIDATED if val_res.is_confirmed else FindingStatus.REJECTED,
             )
 
-            await self._finding_service.save_finding(self.investigation_id, finding)
-
             # 5. If validated, add to chain context for future iterations
-            if verdict == FindingStatus.VALIDATED:
+            if val_res.is_confirmed:
                 validated_findings_context.append({
                     "vuln_class": hypothesis.vuln_class.value,
                     "title": hypothesis.title,
@@ -256,17 +327,18 @@ class AgentOrchestrator:
                 })
 
             # 6. Emit Verdict Event
-            event_type = EventType.FINDING_VALIDATED if verdict == FindingStatus.VALIDATED else EventType.FINDING_REJECTED
+            event_type = EventType.FINDING_VALIDATED if val_res.is_confirmed else EventType.FINDING_REJECTED
             await self._event_service.emit_event(
                 investigation_id=self.investigation_id,
                 phase=InvestigationPhase.LOOP.value,
                 iteration=iteration,
                 event_type=event_type,
                 agent_name="ReviewAgent",
-                input_summary=f"Verdict: {verdict.value} for {hypothesis.endpoint} ({finding.confidence.value if finding.confidence else 'N/A'} confidence) — {len(validated_findings_context)} validated so far",
-                payload=review,
+                input_summary=f"Validation Verdict: {'CONFIRMED' if val_res.is_confirmed else val_res.status.value} (Score {val_res.confidence_score}/100) for {hypothesis.endpoint} — {len(validated_findings_context)} confirmed so far",
+                payload={"review": review, "validation": {"status": val_res.status.value, "score": val_res.confidence_score, "reasons": val_res.scoring_reasons}},
                 correlation_id=hypothesis.hypothesis_id,
             )
+
 
         # ── Phase 4: Final Report Generation ──────────────────────────────────
         await self._event_service.emit_event(

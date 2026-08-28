@@ -730,42 +730,470 @@ def v5_webhook_forward():
         return jsonify({"status": "network_error", "detail": str(exc)}), 200
 
 
-# 4. Enterprise Feature Toggle (Mass Assignment with permission_slug)
-@app.route("/api/v5/permissions/toggle", methods=["POST", "PUT"])
-def v5_permission_toggle():
+# ── Standardized OWASP Local Lab Endpoints (API v1 with Explicit Contracts) ──
+
+import base64
+import hashlib
+import hmac
+import json
+
+LAB_JWT_SECRET = b"synthetic_lab_jwt_secret_key_12345"
+
+
+def verify_lab_jwt(token: str, require_valid_signature: bool = True) -> dict | None:
+    """Verifies synthetic lab JWT tokens."""
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, sig_b64 = parts
+        
+        # Pad base64
+        def b64_decode(s: str) -> bytes:
+            pad = len(s) % 4
+            if pad > 0:
+                s += "=" * (4 - pad)
+            return base64.urlsafe_b64decode(s.encode("utf-8"))
+
+        header = json.loads(b64_decode(header_b64).decode("utf-8"))
+        payload = json.loads(b64_decode(payload_b64).decode("utf-8"))
+
+        if not require_valid_signature:
+            return payload
+
+        if header.get("alg") == "none" or not sig_b64:
+            return None
+
+        # Verify HMAC-SHA256 signature
+        signing_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+        expected_sig = base64.urlsafe_b64encode(
+            hmac.new(LAB_JWT_SECRET, signing_input, hashlib.sha256).digest()
+        ).decode("utf-8").rstrip("=")
+
+        if sig_b64.rstrip("=") != expected_sig:
+            return None
+
+        return payload
+    except Exception:
+        return None
+
+
+# ── 1. BOLA / IDOR Endpoints with Multi-Object Relationships ─────────────────
+
+@app.route("/api/v1/orders/<int:order_id>", methods=["GET"])
+def v1_get_order(order_id: int):
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    slug = data.get("permission_slug", "view_only")
-    return jsonify({"status": "updated", "user_id": user["id"], "permission_slug": slug, "privilege_escalation": True})
+    cursor = _conn.cursor()
+    # VULNERABLE BOLA: Returns order by ID without checking if user_id == user['id']
+    cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "Order not found"}), 404
+    return jsonify({"order": dict(row), "accessed_by_user": user["username"]})
 
 
-# 5. Secure Counterparts
-@app.route("/api/v5/secure/clusters/<int:cluster_id>/kubeconfig", methods=["GET"])
-def v5_secure_kubeconfig(cluster_id: int):
+@app.route("/api/v1/documents/<int:doc_id>", methods=["GET"])
+def v1_get_document(doc_id: int):
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    if cluster_id != user["id"]:
-        return jsonify({"error": "Forbidden: Caller does not own cluster"}), 403
-    return jsonify({"cluster_uuid": f"k8s-cluster-{cluster_id}", "creator_ref": user["id"]})
+    cursor = _conn.cursor()
+    # VULNERABLE BOLA: Returns confidential document without checking owner_user_id
+    cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "Document not found"}), 404
+    return jsonify({"document": dict(row), "accessed_by_user": user["username"]})
 
 
-@app.route("/api/v5/secure/webhooks/forward", methods=["POST"])
-def v5_secure_forward():
+@app.route("/api/v1/invoices/<int:invoice_id>", methods=["GET"])
+def v1_get_invoice(invoice_id: int):
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    dest = data.get("target_uri", "")
-    if any(b in dest.lower() for b in ["127.", "localhost", "169.254.", "10.", "192.168.", "172."]):
-        return jsonify({"error": "Blocked by enterprise egress firewall", "blocked": True}), 400
-    return jsonify({"status": "forwarded", "target": dest})
+    cursor = _conn.cursor()
+    # VULNERABLE BOLA: Returns invoice across tenant boundaries
+    cursor.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "Invoice not found"}), 404
+    return jsonify({"invoice": dict(row), "accessed_by_user": user["username"]})
+
+
+@app.route("/api/v1/secure/orders/<int:order_id>", methods=["GET"])
+def v1_secure_get_order(order_id: int):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM orders WHERE id = ? AND user_id = ?", (order_id, user["id"]))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "Forbidden: Order does not belong to you"}), 403
+    return jsonify({"order": dict(row), "accessed_by_user": user["username"]})
+
+
+@app.route("/api/v1/secure/documents/<int:doc_id>", methods=["GET"])
+def v1_secure_get_document(doc_id: int):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM documents WHERE id = ? AND owner_user_id = ?", (doc_id, user["id"]))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "Forbidden: Document does not belong to you"}), 403
+    return jsonify({"document": dict(row), "accessed_by_user": user["username"]})
+
+
+@app.route("/api/v1/secure/invoices/<int:invoice_id>", methods=["GET"])
+def v1_secure_get_invoice(invoice_id: int):
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM invoices WHERE id = ? AND organization_id = ?", (invoice_id, user["organization_id"]))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({"error": "Forbidden: Invoice belongs to another organization"}), 403
+    return jsonify({"invoice": dict(row), "accessed_by_user": user["username"]})
+
+
+# ── 2. BFLA Endpoints with Explicit Role Rules ───────────────────────────────
+
+@app.route("/api/v1/admin/settings", methods=["GET"])
+def v1_admin_settings():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    # VULNERABLE BFLA: Allows regular user to read admin cluster settings
+    return jsonify({
+        "status": "ok",
+        "cluster_mode": "multi_region",
+        "encryption_at_rest": True,
+        "backup_retention_days": 90,
+        "caller_role": user["role"],
+    })
+
+
+@app.route("/api/v1/admin/audit-logs", methods=["GET"])
+def v1_admin_audit_logs():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    # VULNERABLE BFLA: Allows regular user to read system audit logs
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 10")
+    logs = [dict(r) for r in cursor.fetchall()]
+    return jsonify({"audit_logs": logs, "caller_role": user["role"]})
+
+
+@app.route("/api/v1/billing/export", methods=["GET"])
+def v1_billing_export():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    # VULNERABLE BFLA: Allows any authenticated user to export master billing data
+    return jsonify({
+        "status": "ready",
+        "export_format": "csv",
+        "total_revenue_ytd": 845000.00,
+        "caller_role": user["role"],
+    })
+
+
+@app.route("/api/v1/secure/admin/settings", methods=["GET"])
+def v1_secure_admin_settings():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user["role"] != "admin":
+        return jsonify({"error": "Forbidden: Requires administrator role"}), 403
+    return jsonify({"cluster_mode": "multi_region", "encryption_at_rest": True, "caller_role": user["role"]})
+
+
+@app.route("/api/v1/secure/admin/audit-logs", methods=["GET"])
+def v1_secure_admin_audit_logs():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user["role"] != "admin":
+        return jsonify({"error": "Forbidden: Requires administrator role"}), 403
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 10")
+    return jsonify({"audit_logs": [dict(r) for r in cursor.fetchall()], "caller_role": user["role"]})
+
+
+@app.route("/api/v1/secure/billing/export", methods=["GET"])
+def v1_secure_billing_export():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user["role"] != "admin":
+        return jsonify({"error": "Forbidden: Requires administrator role"}), 403
+    return jsonify({"status": "ready", "export_format": "csv", "caller_role": user["role"]})
+
+
+# ── 3. Response Property Authorization (API3:2023) ───────────────────────────
+
+@app.route("/api/v1/users/me", methods=["GET"])
+def v1_user_me():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    # VULNERABLE API3: Returns raw internal record including password_hash, mfa_secret, stripe_customer_id
+    return jsonify({
+        "id": user["id"],
+        "username": user["username"],
+        "email": user["email"],
+        "role": user["role"],
+        "password_hash": user["password_hash"],
+        "mfa_secret": user["mfa_secret"],
+        "stripe_customer_id": user["stripe_customer_id"],
+    })
+
+
+@app.route("/api/v1/secure/users/me", methods=["GET"])
+def v1_secure_user_me():
+    user = get_authenticated_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    # SECURE: Returns only safe public profile attributes according to contract
+    return jsonify({
+        "id": user["id"],
+        "username": user["username"],
+        "email": user["email"],
+        "role": user["role"],
+        "organization_id": user["organization_id"],
+    })
+
+
+# ── 4. Pagination / Resource Limit Endpoints (API4:2023) ──────────────────────
+
+@app.route("/api/v1/catalog/items", methods=["GET"])
+def v1_catalog_items():
+    limit = request.args.get("limit", "10")
+    try:
+        limit_val = max(1, min(1000, int(limit)))
+    except ValueError:
+        limit_val = 10
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM catalog_items LIMIT ?", (limit_val,))
+    items = [dict(r) for r in cursor.fetchall()]
+    return jsonify({
+        "limit_applied": limit_val,
+        "count": len(items),
+        "items": items,
+    })
+
+
+@app.route("/api/v1/logs", methods=["GET"])
+def v1_logs_pagination():
+    size = request.args.get("size", "10")
+    try:
+        size_val = max(1, min(1000, int(size)))
+    except ValueError:
+        size_val = 10
+    cursor = _conn.cursor()
+    cursor.execute("SELECT * FROM audit_logs LIMIT ?", (size_val,))
+    logs = [dict(r) for r in cursor.fetchall()]
+    return jsonify({
+        "size_applied": size_val,
+        "count": len(logs),
+        "logs": logs,
+    })
+
+
+# ── 5. JWT Signature Verification Endpoints (API2:2023) ──────────────────────
+
+@app.route("/api/v1/jwt/insecure", methods=["GET"])
+def v1_jwt_insecure():
+    token = get_current_user_token()
+    if not token:
+        return jsonify({"error": "Missing Bearer token"}), 401
+    # VULNERABLE: Decodes JWT without signature validation / accepts alg=none
+    payload = verify_lab_jwt(token, require_valid_signature=False)
+    if not payload:
+        return jsonify({"error": "Invalid token format"}), 401
+    return jsonify({
+        "status": "authenticated_insecure",
+        "subject": payload.get("sub", "unknown"),
+        "role": payload.get("role", "user"),
+        "warning": "Signature check bypassed in legacy mode",
+    })
+
+
+@app.route("/api/v1/jwt/secure", methods=["GET"])
+def v1_jwt_secure():
+    token = get_current_user_token()
+    if not token:
+        return jsonify({"error": "Missing Bearer token"}), 401
+    # SECURE: Strictly enforces HMAC-SHA256 signature and rejects alg=none
+    payload = verify_lab_jwt(token, require_valid_signature=True)
+    if not payload:
+        return jsonify({"error": "Invalid or forged JWT signature"}), 401
+    return jsonify({
+        "status": "authenticated_secure",
+        "subject": payload.get("sub", "unknown"),
+        "role": payload.get("role", "user"),
+    })
+
+
+# ── 6. Explicit OpenAPI 3.0 Specification Endpoint ────────────────────────────
+
+@app.route("/openapi.json", methods=["GET"])
+def openapi_spec():
+    """Serves complete OpenAPI 3.0 specification for all lab endpoints."""
+    spec = {
+        "openapi": "3.0.3",
+        "info": {
+            "title": "Acme Enterprise Vulnerability Lab API",
+            "version": "1.0.0",
+            "description": "Standardized local test lab with explicit authorization contracts, parameter bounds, and response contracts.",
+        },
+        "servers": [{"url": "http://localhost:5000"}],
+        "components": {
+            "securitySchemes": {
+                "BearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                }
+            }
+        },
+        "paths": {
+            "/api/v1/orders/{id}": {
+                "get": {
+                    "summary": "Get order details (BOLA vulnerable)",
+                    "parameters": [{
+                        "name": "id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer", "minimum": 1, "maximum": 100}
+                    }],
+                    "responses": {"200": {"description": "Order details"}, "401": {"description": "Unauthorized"}}
+                }
+            },
+            "/api/v1/secure/orders/{id}": {
+                "get": {
+                    "summary": "Get order details (BOLA secure)",
+                    "parameters": [{
+                        "name": "id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer", "minimum": 1, "maximum": 100}
+                    }],
+                    "responses": {"200": {"description": "Order details"}, "403": {"description": "Forbidden"}}
+                }
+            },
+            "/api/v1/documents/{id}": {
+                "get": {
+                    "summary": "Get document (BOLA vulnerable)",
+                    "parameters": [{
+                        "name": "id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer", "minimum": 1, "maximum": 50}
+                    }],
+                    "responses": {"200": {"description": "Document content"}}
+                }
+            },
+            "/api/v1/admin/settings": {
+                "get": {
+                    "summary": "Admin settings (BFLA vulnerable)",
+                    "responses": {"200": {"description": "Cluster settings"}}
+                }
+            },
+            "/api/v1/secure/admin/settings": {
+                "get": {
+                    "summary": "Admin settings (BFLA secure)",
+                    "responses": {"200": {"description": "Cluster settings"}, "403": {"description": "Forbidden: Requires admin"}}
+                }
+            },
+            "/api/v1/admin/audit-logs": {
+                "get": {
+                    "summary": "Audit logs (BFLA vulnerable)",
+                    "responses": {"200": {"description": "System audit logs"}}
+                }
+            },
+            "/api/v1/secure/admin/audit-logs": {
+                "get": {
+                    "summary": "Audit logs (BFLA secure)",
+                    "responses": {"200": {"description": "System audit logs"}, "403": {"description": "Forbidden: Requires admin"}}
+                }
+            },
+            "/api/v1/billing/export": {
+                "get": {
+                    "summary": "Billing export (BFLA vulnerable)",
+                    "responses": {"200": {"description": "Billing export data"}}
+                }
+            },
+            "/api/v1/secure/billing/export": {
+                "get": {
+                    "summary": "Billing export (BFLA secure)",
+                    "responses": {"200": {"description": "Billing export data"}, "403": {"description": "Forbidden: Requires admin"}}
+                }
+            },
+            "/api/v1/users/me": {
+                "get": {
+                    "summary": "Current user profile (API3 vulnerable)",
+                    "responses": {"200": {"description": "Full profile leaking sensitive fields"}}
+                }
+            },
+            "/api/v1/secure/users/me": {
+                "get": {
+                    "summary": "Current user profile (API3 secure)",
+                    "responses": {"200": {"description": "Sanitized public profile"}}
+                }
+            },
+            "/api/v1/catalog/items": {
+                "get": {
+                    "summary": "List catalog items with bounded limit",
+                    "parameters": [{
+                        "name": "limit",
+                        "in": "query",
+                        "required": False,
+                        "schema": {"type": "integer", "default": 10, "minimum": 1, "maximum": 20}
+                    }],
+                    "responses": {"200": {"description": "Catalog item list"}}
+                }
+            },
+            "/api/v1/logs": {
+                "get": {
+                    "summary": "List audit logs with bounded size",
+                    "parameters": [{
+                        "name": "size",
+                        "in": "query",
+                        "required": False,
+                        "schema": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50}
+                    }],
+                    "responses": {"200": {"description": "Log entry list"}}
+                }
+            },
+            "/api/v1/jwt/insecure": {
+                "get": {
+                    "summary": "JWT authentication (API2 vulnerable, alg=none permitted)",
+                    "security": [{"BearerAuth": []}],
+                    "responses": {"200": {"description": "Authenticated"}, "401": {"description": "Unauthorized"}}
+                }
+            },
+            "/api/v1/jwt/secure": {
+                "get": {
+                    "summary": "JWT authentication (API2 secure, strict HMAC-SHA256 signature)",
+                    "security": [{"BearerAuth": []}],
+                    "responses": {"200": {"description": "Authenticated"}, "401": {"description": "Unauthorized"}}
+                }
+            }
+        }
+    }
+    return jsonify(spec)
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 

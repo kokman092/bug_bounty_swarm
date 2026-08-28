@@ -106,30 +106,26 @@ def resolve_host(hostname: str) -> list[str]:
         raise PrivateIPAccessError(hostname) from exc
 
 
-def validate_host_not_private(host: str) -> None:
+def validate_host_not_private(host: str, allow_local_lab: bool = False) -> None:
     """
     Check that a hostname/IP is not private or internal.
     Raises PrivateIPAccessError if it is.
 
     Checks:
-      1. Blocked hostname list (localhost, metadata.google.internal, etc.)
-      2. Direct IP address check (if host looks like an IP)
-      3. DNS resolution + IP check for all resolved addresses
+      1. Explicit local lab allowance if permitted in development mode.
+      2. Blocked hostname list (localhost, metadata.google.internal, etc.)
+      3. Direct IP address check (if host looks like an IP)
+      4. DNS resolution + IP check for all resolved addresses
     """
-    from app.core.config import get_settings
-    try:
-        settings = get_settings()
-        if settings.is_development and settings.allow_local_lab_targets:
-            if host.lower() in {"localhost", "127.0.0.1", "vuln_lab"}:
-                logger.debug("local_lab_target_permitted_in_dev", host=host)
-                return
-    except Exception:
-        pass
+    if allow_local_lab and host.lower() in {"localhost", "127.0.0.1", "vuln_lab"}:
+        logger.debug("local_lab_target_permitted_in_dev", host=host)
+        return
 
     # 1. Blocked hostname list
     if host.lower() in _BLOCKED_HOSTNAMES:
         logger.warning("private_ip_blocked_hostname", host=host)
         raise PrivateIPAccessError(host)
+
 
     # 2. If host is already an IP address, check directly
     try:

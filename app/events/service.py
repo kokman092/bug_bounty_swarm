@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import uuid
+
 from datetime import datetime
 from typing import Any, AsyncGenerator
 
@@ -29,48 +31,99 @@ logger = get_logger(__name__)
 # Maximum allowed payload size before truncation (50KB)
 MAX_PAYLOAD_BYTES = 50 * 1024
 
-SENSITIVE_KEYS = {
-    "api_key", "apikey", "secret", "password", "token",
-    "authorization", "cookie", "set-cookie", "bearer",
-    "gemini_api_key", "x-api-key", "private_key",
-}
+SENSITIVE_KEY_PATTERNS = re.compile(
+    r"(api[_-]?key|secret|password|passwd|token|authorization|auth|cookie|set-cookie|bearer|gemini_api_key|x-api-key|private_key|credentials)",
+    re.IGNORECASE,
+)
+
+# String value secret redaction regexes
+JWT_PATTERN = re.compile(r"eyJ[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}(\.[a-zA-Z0-9_-]*)?")
+BEARER_PATTERN = re.compile(r"Bearer\s+[a-zA-Z0-9_\-\.]+", re.IGNORECASE)
+BASIC_PATTERN = re.compile(r"Basic\s+[a-zA-Z0-9+/=]+", re.IGNORECASE)
+API_KEY_VAL_PATTERN = re.compile(r"(api[_-]?key\s*[=:]\s*)([a-zA-Z0-9_\-]+)", re.IGNORECASE)
+PASSWORD_VAL_PATTERN = re.compile(r"(password\s*[=:]\s*)([^\s,;&]+)", re.IGNORECASE)
+
+
+def sanitize_string(text: str) -> str:
+    """Sanitize secrets embedded inside arbitrary text strings."""
+    if not isinstance(text, str):
+        return text
+
+    out = text
+    # 1. Redact Bearer tokens
+    out = BEARER_PATTERN.sub("Bearer [REDACTED]", out)
+    # 2. Redact Basic auth
+    out = BASIC_PATTERN.sub("Basic [REDACTED]", out)
+    # 3. Redact API key expressions (e.g. api_key=sk-123)
+    out = API_KEY_VAL_PATTERN.sub(r"\1[REDACTED]", out)
+    # 4. Redact Password expressions
+    out = PASSWORD_VAL_PATTERN.sub(r"\1[REDACTED]", out)
+    # 5. Redact raw JWT tokens
+    out = JWT_PATTERN.sub("[REDACTED_JWT]", out)
+    return out
 
 
 def sanitize_payload(obj: Any) -> Any:
-    """Recursively redact sensitive field values."""
+    """
+    Recursively redact sensitive field values and secrets across dictionaries,
+    lists, headers, and text strings without mutating the input object.
+    """
     if isinstance(obj, dict):
         sanitized = {}
         for k, v in obj.items():
-            if str(k).lower() in SENSITIVE_KEYS:
+            k_str = str(k)
+            if SENSITIVE_KEY_PATTERNS.search(k_str):
                 sanitized[k] = "[REDACTED]"
             else:
                 sanitized[k] = sanitize_payload(v)
+
+
         return sanitized
     elif isinstance(obj, list):
         return [sanitize_payload(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(sanitize_payload(item) for item in obj)
+    elif isinstance(obj, set):
+        return {sanitize_payload(item) for item in obj}
+    elif isinstance(obj, str):
+        return sanitize_string(obj)
     return obj
 
 
-def truncate_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
-    """Truncate payload if serialized size exceeds MAX_PAYLOAD_BYTES."""
+def truncate_payload(
+    payload: dict[str, Any], max_bytes: int = MAX_PAYLOAD_BYTES
+) -> tuple[dict[str, Any], bool]:
+    """
+    Truncate payload if serialized size exceeds max_bytes, preserving structure
+    and truncating oversized text fields with [Truncated] indicators.
+    """
     try:
         serialized = json.dumps(payload, default=str)
         size_bytes = len(serialized.encode("utf-8"))
-        if size_bytes <= MAX_PAYLOAD_BYTES:
-            return payload, False
+        if size_bytes <= max_bytes:
+            return dict(payload), False
 
-        truncated_summary = {
-            "_truncated": True,
-            "_original_size_bytes": size_bytes,
-            "_message": f"Payload exceeded {MAX_PAYLOAD_BYTES} byte limit and was truncated.",
-            "keys_present": list(payload.keys()),
-        }
-        for k, v in payload.items():
-            if isinstance(v, (str, int, float, bool)) and len(str(v)) < 200:
-                truncated_summary[k] = v
-        return truncated_summary, True
+        truncated = dict(payload)
+        for k, v in list(truncated.items()):
+            if isinstance(v, str) and len(v) > 200:
+                keep_len = max(50, max_bytes // (len(payload) + 1))
+                truncated[k] = v[:keep_len] + f"... [Truncated: {len(v)} bytes]"
+
+        # Re-check size
+        if len(json.dumps(truncated, default=str).encode("utf-8")) > max_bytes:
+            # Fallback to compact summary
+            compact_summary = {
+                "_truncated": True,
+                "_original_size_bytes": size_bytes,
+                "summary": str(payload.get("summary", "Truncated large payload")),
+                "keys_present": list(payload.keys()),
+            }
+            return compact_summary, True
+
+        return truncated, True
     except Exception:
         return {"_truncated": True, "_error": "Failed to serialize payload"}, True
+
 
 
 class EventService:

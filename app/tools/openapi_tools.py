@@ -68,12 +68,21 @@ async def fetch_and_parse_openapi_specs(
                                         params_list = []
                                         for p in details.get("parameters", []):
                                             if isinstance(p, dict):
+                                                schema_obj = p.get("schema", {}) if isinstance(p.get("schema"), dict) else {}
+                                                min_val = p.get("minimum") if p.get("minimum") is not None else schema_obj.get("minimum")
+                                                max_val = p.get("maximum") if p.get("maximum") is not None else schema_obj.get("maximum")
+                                                def_val = p.get("default") if p.get("default") is not None else schema_obj.get("default")
                                                 params_list.append({
                                                     "name": p.get("name"),
                                                     "in": p.get("in"),
                                                     "required": p.get("required", False),
-                                                    "type": p.get("type") or p.get("schema", {}).get("type", "string"),
+                                                    "type": p.get("type") or schema_obj.get("type", "string"),
+                                                    "documented_minimum": int(min_val) if isinstance(min_val, (int, float)) else None,
+                                                    "documented_maximum": int(max_val) if isinstance(max_val, (int, float)) else None,
+                                                    "documented_default": int(def_val) if isinstance(def_val, (int, float)) else None,
+                                                    "schema_reference": f"openapi:/paths/{route_path}/{method}/parameters/{p.get('name')}",
                                                 })
+
 
                                         discovered_endpoints.append({
                                             "path": route_path,

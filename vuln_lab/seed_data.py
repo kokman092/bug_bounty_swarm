@@ -1,22 +1,22 @@
 """
 vuln_lab/seed_data.py
 ─────────────────────
-Seeds in-memory SQLite database with test users, organizations, orders, and sensitive enterprise keys.
+Seeds in-memory SQLite database with synthetic test users, organizations, orders,
+documents, invoices, audit logs, and catalog items.
+ALL DATA IS SYNTHETIC TEST FIXTURE DATA (No real PII or secrets).
 """
 import sqlite3
 
 USERS = [
-    (1, "alice", "pbkdf2:sha256:1000$alice_hash", "user", "alice_token_123", "alice@enterprise.corp", 1),
-    (2, "bob", "pbkdf2:sha256:1000$bob_hash", "user", "bob_token_456", "bob@attacker.io", 2),
-    (3, "admin", "pbkdf2:sha256:1000$admin_hash", "admin", "admin_master_token_789", "admin@internal.sec", 1),
+    (1, "alice", "pbkdf2:sha256:1000$synthetic_alice_hash", "user", "alice_token_123", "alice@synthetic-test.local", 1, "mfa_secret_synthetic_alice", "cus_synthetic_alice_123"),
+    (2, "bob", "pbkdf2:sha256:1000$synthetic_bob_hash", "user", "bob_token_456", "bob@synthetic-test.local", 2, "mfa_secret_synthetic_bob", "cus_synthetic_bob_456"),
+    (3, "admin", "pbkdf2:sha256:1000$synthetic_admin_hash", "admin", "admin_master_token_789", "admin@synthetic-test.local", 1, "mfa_secret_synthetic_admin", "cus_synthetic_admin_789"),
 ]
 
 ORGANIZATIONS = [
-    (1, "Acme MegaCorp", 1, "sk_live_acme_sec_9988776655443322", "Enterprise Elite", "****-****-****-4242", "prod_webhook_key_secret_alice"),
-    (2, "Bob Freelance LLC", 2, "sk_live_bob_free_1122334455667788", "Free Tier", "****-****-****-1234", "prod_webhook_key_secret_bob"),
-    (3, "CyberDyne Systems", 1, "sk_live_cyberdyne_secret_998811", "Enterprise VIP", "****-****-****-9988", "prod_webhook_key_secret_cyberdyne"),
-    (4, "Initech Global", 1, "sk_live_initech_secret_776655", "Enterprise Plus", "****-****-****-7766", "prod_webhook_key_secret_initech"),
-    (5, "Umbrella Corp", 1, "sk_live_umbrella_secret_332211", "Custom Dedicated", "****-****-****-3322", "prod_webhook_key_secret_umbrella"),
+    (1, "Acme MegaCorp", 1, "sk_test_synthetic_acme_sec_998877", "Enterprise Elite", "4242", "synthetic_webhook_key_alice"),
+    (2, "Bob Freelance LLC", 2, "sk_test_synthetic_bob_free_112233", "Free Tier", "1234", "synthetic_webhook_key_bob"),
+    (3, "CyberDyne Systems", 1, "sk_test_synthetic_cyberdyne_998811", "Enterprise VIP", "9988", "synthetic_webhook_key_cyberdyne"),
 ]
 
 ORDERS = [
@@ -29,11 +29,34 @@ ORDERS = [
     (7, 1, "Cloud Migration Archive", 15000.00, "/invoices/inv_007.pdf"),
 ]
 
+DOCUMENTS = [
+    (1, 1, "Q3_Strategic_Roadmap.pdf", "SYNTHETIC_CONFIDENTIAL_ROADMAP_ALICE", 1),
+    (2, 2, "Contractor_Invoice_Timesheet.pdf", "SYNTHETIC_TIMESHEET_BOB", 2),
+    (3, 1, "Enterprise_Architecture_Draft.pdf", "SYNTHETIC_INTERNAL_SPEC_ALICE", 1),
+]
+
+INVOICES = [
+    (1, 1, 1, 5000.00, "PAID", "4242", "/invoices/inv_001.pdf"),
+    (2, 2, 2, 49.99, "PAID", "1234", "/invoices/inv_003.pdf"),
+    (3, 1, 1, 12000.00, "PAID", "4242", "/invoices/inv_002.pdf"),
+]
+
+AUDIT_LOGS = [
+    (1, "2026-08-28T10:00:00Z", "user_login", "alice", "10.0.0.1", "SUCCESS"),
+    (2, "2026-08-28T10:05:00Z", "role_update", "admin", "10.0.0.2", "SUCCESS"),
+    (3, "2026-08-28T10:10:00Z", "api_key_rotate", "admin", "10.0.0.2", "SUCCESS"),
+    (4, "2026-08-28T10:15:00Z", "system_reconfig", "admin", "10.0.0.2", "SUCCESS"),
+]
 
 PRODUCTS = [
     (1, "Enterprise Shield", 999.00, "Enterprise cybersecurity defense appliance"),
     (2, "Developer Token Pack", 49.00, "100k API request credits"),
     (3, "Cloud Sentinel Sensor", 2499.00, "Real-time container vulnerability scanner"),
+]
+
+CATALOG_ITEMS = [
+    (i, f"Synthetic Item #{i}", f"SKU-{1000+i}", "Infrastructure", 19.99 + (i * 2), True)
+    for i in range(1, 101)
 ]
 
 
@@ -47,7 +70,9 @@ def init_db(conn: sqlite3.Connection) -> None:
             role TEXT,
             token TEXT,
             email TEXT,
-            organization_id INTEGER
+            organization_id INTEGER,
+            mfa_secret TEXT,
+            stripe_customer_id TEXT
         )
     """)
     cursor.execute("""
@@ -71,6 +96,36 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY,
+            owner_user_id INTEGER,
+            filename TEXT,
+            content TEXT,
+            organization_id INTEGER
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY,
+            organization_id INTEGER,
+            user_id INTEGER,
+            amount REAL,
+            status TEXT,
+            card_last4 TEXT,
+            pdf_path TEXT
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY,
+            timestamp TEXT,
+            action TEXT,
+            actor TEXT,
+            ip_address TEXT,
+            status TEXT
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY,
             name TEXT,
@@ -78,10 +133,23 @@ def init_db(conn: sqlite3.Connection) -> None:
             description TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS catalog_items (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            sku TEXT,
+            category TEXT,
+            price REAL,
+            in_stock BOOLEAN
+        )
+    """)
 
-    cursor.executemany("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?)", USERS)
+    cursor.executemany("INSERT OR REPLACE INTO users VALUES (?,?,?,?,?,?,?,?,?)", USERS)
     cursor.executemany("INSERT OR REPLACE INTO organizations VALUES (?,?,?,?,?,?,?)", ORGANIZATIONS)
     cursor.executemany("INSERT OR REPLACE INTO orders VALUES (?,?,?,?,?)", ORDERS)
+    cursor.executemany("INSERT OR REPLACE INTO documents VALUES (?,?,?,?,?)", DOCUMENTS)
+    cursor.executemany("INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?)", INVOICES)
+    cursor.executemany("INSERT OR REPLACE INTO audit_logs VALUES (?,?,?,?,?,?)", AUDIT_LOGS)
     cursor.executemany("INSERT OR REPLACE INTO products VALUES (?,?,?,?)", PRODUCTS)
+    cursor.executemany("INSERT OR REPLACE INTO catalog_items VALUES (?,?,?,?,?,?)", CATALOG_ITEMS)
     conn.commit()
-
