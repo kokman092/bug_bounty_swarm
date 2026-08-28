@@ -22,8 +22,10 @@ class ReportFindingItem(BaseModel):
     description: str
     impact: str
     reproduction_steps: list[str] = Field(default_factory=list)
+    poc_curl: str = Field("", description="Concrete curl reproduction command")
     remediation: str
     confidence: str
+
 
 
 class InvestigationReport(BaseModel):

@@ -32,6 +32,89 @@ Format each finding with:
 """
 
 
+def _build_poc_and_steps(
+    vuln_class_val: str,
+    endpoint: str,
+    title: str,
+    base_url: str,
+    attacker_token: str,
+) -> tuple[str, list[str], str, str]:
+    """
+    Returns (poc_curl, reproduction_steps, impact, remediation) tailored to the specific vulnerability type.
+    """
+    base = base_url.rstrip("/")
+    ep = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+    full_url = f"{base}{ep}"
+    ep_lower = ep.lower()
+    title_lower = title.lower()
+
+    if "jwt" in ep_lower or "jwt" in title_lower or "algorithm none" in title_lower:
+        token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJib2IiLCJyb2xlIjoiYWRtaW4ifQ."
+        poc_curl = f'curl -X GET "{full_url}" \\\n     -H "Authorization: Bearer {token}" \\\n     -H "Accept: application/json"'
+        steps = [
+            '1. Construct an unsigned JWT token with header `{"alg": "none", "typ": "JWT"}` and administrative payload `{"sub": "bob", "role": "admin"}`.',
+            f'2. Send a GET request to `{ep}` supplying the forged token in the Authorization header.',
+            '3. Observe HTTP 200 response with administrative privileges, confirming signature verification bypass.',
+        ]
+        impact = "Complete authentication bypass allowing unauthenticated remote actors to forge arbitrary administrative sessions."
+        remediation = "Enforce strict cryptographic signature verification on all received JWT tokens. Explicitly reject tokens with algorithm 'none' and restrict allowed algorithms to secure asymmetric algorithms (e.g. RS256/ES256)."
+        return poc_curl, steps, impact, remediation
+
+    if "debug" in ep_lower or "metric" in ep_lower or vuln_class_val == "InfoDisclosure":
+        poc_curl = f'curl -X GET "{full_url}" \\\n     -H "Accept: application/json"'
+        steps = [
+            f'1. Send an unauthenticated GET request to `{ep}`.',
+            '2. Inspect the HTTP response headers and body.',
+            '3. Observe sensitive internal infrastructure details, backend endpoints, or cloud metadata URLs exposed without authentication.',
+        ]
+        impact = "Exposes internal system configuration, network topology, and sensitive microservice endpoints to unauthenticated remote attackers."
+        remediation = "Restrict debug and metrics endpoints to internal management networks or require authenticated administrative credentials."
+        return poc_curl, steps, impact, remediation
+
+    if "webhook" in ep_lower or vuln_class_val == "SSRF":
+        poc_curl = f'curl -X POST "{full_url}" \\\n     -H "Authorization: Bearer {attacker_token}" \\\n     -H "Content-Type: application/json" \\\n     -d \'{{"webhook_url": "http://169.254.169.254/latest/meta-data/"}}\''
+        steps = [
+            '1. Authenticate with standard user credentials.',
+            f'2. Send a POST request to `{ep}` supplying a cloud metadata target (`http://169.254.169.254/latest/meta-data/`) in the `webhook_url` parameter.',
+            '3. Observe the server attempting outbound connection to the protected internal metadata IP address.',
+        ]
+        impact = "Server-Side Request Forgery enables unauthorized probing of internal cloud metadata, IAM credentials, and intranet microservices."
+        remediation = "Implement strict URL domain whitelisting and block all loopback, link-local (169.254.169.254), and private IP ranges (RFC 1918) on server-side requests."
+        return poc_curl, steps, impact, remediation
+
+    if "profile" in ep_lower or vuln_class_val == "MassAssignment":
+        poc_curl = f'curl -X PUT "{full_url}" \\\n     -H "Authorization: Bearer {attacker_token}" \\\n     -H "Content-Type: application/json" \\\n     -d \'{{"role": "admin", "email": "attacker@pwned.io"}}\''
+        steps = [
+            '1. Authenticate as a standard unprivileged user.',
+            f'2. Send a PUT request to `{ep}` injecting the privileged property `role: "admin"`.',
+            '3. Observe the application accepting and persisting the elevated role without authorization validation.',
+        ]
+        impact = "Unprivileged users can unilaterally escalate their account privileges to full system administrator."
+        remediation = "Use explicit Data Transfer Objects (DTOs) with strict field whitelisting to prevent mass assignment of sensitive security attributes."
+        return poc_curl, steps, impact, remediation
+
+    if vuln_class_val == "SQLi" or "sqli" in ep_lower:
+        poc_curl = f'curl -X GET "{full_url}?q=\' UNION SELECT 1,2,3,4-- -"'
+        steps = [
+            f'1. Send a request to `{ep}` appending a SQL injection payload in the query parameter.',
+            '2. Observe query execution artifacts or unescaped database outputs returned in the response body.',
+        ]
+        impact = "Arbitrary SQL execution allowing unauthorized read, modification, or extraction of persistent database records."
+        remediation = "Use parameterized queries, prepared statements, and Object-Relational Mappers (ORM) for all database operations."
+        return poc_curl, steps, impact, remediation
+
+    # Standard BOLA / IDOR / Authorization Differential
+    poc_curl = f'curl -X GET "{full_url}" \\\n     -H "Authorization: Bearer {attacker_token}" \\\n     -H "Accept: application/json"'
+    steps = [
+        "1. Authenticate as User A (legitimate resource owner) and observe legitimate access.",
+        f"2. Authenticate as User B (unauthorized attacker) and send request to: `{ep}`.",
+        "3. Observe HTTP 200 response returning User A's private data to User B.",
+    ]
+    impact = "Cross-user unauthorized data access violating tenant and object boundary isolation."
+    remediation = "Enforce server-side authorization checks verifying user ownership on the queried object ID."
+    return poc_curl, steps, impact, remediation
+
+
 class ReportAgent:
     """Compiles validated security findings into executive reports."""
 
@@ -69,6 +152,14 @@ class ReportAgent:
                         break
             attacker_tokens[f.finding_id] = token
 
+            poc_curl, repro_steps, impact, remediation = _build_poc_and_steps(
+                vuln_class_val=f.vuln_class.value,
+                endpoint=f.endpoint,
+                title=f.title,
+                base_url=self.target_url,
+                attacker_token=token,
+            )
+
             finding_items.append(
                 ReportFindingItem(
                     finding_id=f.finding_id,
@@ -76,14 +167,11 @@ class ReportAgent:
                     severity=f.severity.value,
                     vuln_class=f.vuln_class.value,
                     affected_endpoint=f.endpoint,
-                    description=f.evidence_summary or f"Authorization vulnerability detected on {f.endpoint}",
-                    impact="Cross-user unauthorized data access violating tenant and object boundary isolation.",
-                    reproduction_steps=[
-                        f"1. Authenticate as User A (legitimate resource owner) and observe legitimate access.",
-                        f"2. Authenticate as User B (unauthorized attacker) and send request to: `{f.endpoint}`.",
-                        f"3. Observe HTTP 200 response returning User A's private data to User B.",
-                    ],
-                    remediation=f.remediation_guidance or "Enforce server-side authorization checks verifying user ownership on the queried object ID.",
+                    description=f.evidence_summary or f"Vulnerability detected on {f.endpoint}",
+                    impact=impact,
+                    reproduction_steps=repro_steps,
+                    poc_curl=poc_curl,
+                    remediation=f.remediation_guidance or remediation,
                     confidence=f.confidence.value if f.confidence else "High",
                 )
             )

