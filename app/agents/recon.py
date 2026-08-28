@@ -72,6 +72,7 @@ class ReconAgent:
         robots_res = await fetch_robots_txt(self.target_url, self.investigation_id)
         sitemap_res = await fetch_sitemap(self.target_url, self.investigation_id)
         openapi_res = await fetch_and_parse_openapi_specs(self.target_url, self.investigation_id)
+        js_spider_res = await scrape_links_and_forms(self.target_url, self.investigation_id)
         katana_res = await run_katana(self.target_url, self.investigation_id)
         subfinder_res = await run_subfinder(parsed_domain, self.investigation_id)
         nuclei_res = await run_nuclei_scan(self.target_url, self.investigation_id)
@@ -80,6 +81,7 @@ class ReconAgent:
 
         tool_findings = {
             "target_url": self.target_url,
+            "js_crawler_endpoints": js_spider_res,
             "subfinder_subdomains": subfinder_res,
             "katana_crawled_routes": katana_res,
             "openapi_specs": openapi_res,
@@ -89,6 +91,7 @@ class ReconAgent:
             "deep_api_probes": deep_probe_res,
             "robots_disallow_spider": robots_spider_res,
         }
+
 
         # 2. Invoke Gemini dynamically to synthesize attack surface
         prompt = f"""

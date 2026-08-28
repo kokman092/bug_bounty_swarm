@@ -132,37 +132,51 @@ async def scrape_links_and_forms(target_url: str, investigation_id: str) -> dict
                     "input_names": inputs,
                 })
 
-            # 4. Extract script sources
+            # 4. Extract all script sources
             scripts = re.findall(r'src=["\']([^"\']+\.js[^"\']*)["\']', html, re.IGNORECASE)
 
-            # 5. Generalized relative path extraction from HTML body (agnostic to keyword prefixes)
-            path_pattern = re.compile(r"""(?:["'`=\s])(/[a-zA-Z0-9_.~%!$&'()*+,;=:@/-]+)""")
+            # 5. Generalized LinkFinder-style relative path extraction (agnostic to framework)
+            path_pattern = re.compile(r"""(?:"|'|`)(/(?:[a-zA-Z0-9_.~%!$&'()*+,;=:@/-]+))(?:"|'|`)""")
+            rest_pattern = re.compile(r"""(?:"|'|`)((?:rest|api|v[0-9]|graphql)/[a-zA-Z0-9_.~%!$&'()*+,;=:@/-]+)(?:"|'|`)""")
+
+            STATIC_EXTS = re.compile(r'\.(css|png|jpg|jpeg|gif|svg|woff2?|ico|map|js|html|ttf|eot)$', re.IGNORECASE)
+
             for match in path_pattern.finditer(html):
                 path = match.group(1).rstrip("/")
                 if len(path) > 1 and not path.startswith(("//", "/*", "/<")):
-                    if not re.search(r'\.(css|png|jpg|jpeg|gif|svg|woff2?|ico|map|js|html)$', path, re.IGNORECASE):
+                    if not STATIC_EXTS.search(path):
                         discovered_paths.add(path)
 
-            # 6. SPA JavaScript Bundle Analysis (e.g. Angular, React, Vue bundles)
-            for script_src in scripts[:4]:
+            # 6. SPA JavaScript Bundle Analysis (e.g. Angular, React, Vue, Svelte, Next.js bundles)
+            for script_src in scripts:
                 script_url = urljoin(root_url, script_src)
                 try:
                     js_resp = await client.get(script_url)
                     if js_resp.status_code == 200:
                         js_content = client.get_response_text_safe(js_resp)
+                        
+                        # Match leading slash relative paths
                         for match in path_pattern.finditer(js_content):
                             endpoint_path = match.group(1).rstrip("/")
                             if len(endpoint_path) > 1 and not endpoint_path.startswith(("//", "/*", "/<")):
-                                if not re.search(r'\.(css|png|jpg|jpeg|gif|svg|woff2?|ico|map|js|html)$', endpoint_path, re.IGNORECASE):
+                                if not STATIC_EXTS.search(endpoint_path):
                                     discovered_paths.add(endpoint_path)
+
+                        # Match REST/API keyword paths without leading slash
+                        for match in rest_pattern.finditer(js_content):
+                            raw_p = match.group(1).rstrip("/")
+                            endpoint_path = f"/{raw_p}" if not raw_p.startswith("/") else raw_p
+                            if not STATIC_EXTS.search(endpoint_path):
+                                discovered_paths.add(endpoint_path)
+
                 except Exception as exc:
                     logger.debug("script_fetch_skipped", script=script_src, error=str(exc))
 
             return {
                 "status": "success",
-                "paths": sorted(list(discovered_paths))[:50],
+                "paths": sorted(list(discovered_paths))[:100],
                 "forms": forms[:10],
-                "scripts": scripts[:10],
+                "scripts": scripts,
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
@@ -171,12 +185,12 @@ async def scrape_links_and_forms(target_url: str, investigation_id: str) -> dict
 async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict[str, Any]:
     """
     Actively probe common REST API path prefixes to discover deep endpoints
-    not linked from the root page (e.g., /api/v2/, /api/admin/, /api/debug/).
+    not linked from the root page. Handles 401/403 positive signals and detects SPA fallbacks.
     """
     base = normalize_url(target_url)
     root = f"{base.scheme}://{base.host_with_port}"
 
-    # Common API paths to probe — covers versioned APIs, admin panels, debug endpoints
+    # Common API paths to probe
     PROBE_PATHS = [
         "/api",
         "/api/v1",
@@ -215,12 +229,20 @@ async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict
             probe_url = f"{root}{path}"
             try:
                 resp = await client.get(probe_url)
-                if resp.status_code in (200, 201, 301, 302, 400, 405):
+                if resp.status_code in (200, 201, 301, 302, 400, 401, 403, 405):
                     body_preview = client.get_response_text_safe(resp)[:500]
+                    
+                    # Detect SPA HTML fallback (returning 200 index.html on missing routes)
+                    is_spa_html = "<!doctype html>" in body_preview.lower() or "<html" in body_preview.lower()
+                    if resp.status_code == 200 and is_spa_html and path not in ("/", "/docs", "/swagger"):
+                        # Skip false positive SPA fallback routes
+                        continue
+
                     discovered.append({
                         "path": path,
                         "status_code": resp.status_code,
                         "content_type": resp.headers.get("content-type", ""),
+                        "requires_auth": resp.status_code in (401, 403),
                         "body_preview": body_preview,
                     })
                     logger.info("deep_probe_hit", path=path, status=resp.status_code)
@@ -233,4 +255,5 @@ async def probe_common_api_paths(target_url: str, investigation_id: str) -> dict
         "discovered_count": len(discovered),
         "endpoints": discovered,
     }
+
 
