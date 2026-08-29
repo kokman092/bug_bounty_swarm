@@ -1,49 +1,54 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# start.ps1 — BugBounty Swarm One-Click Launcher
-# ─────────────────────────────────────────────────────────────────────────────
-# Usage: Right-click → "Run with PowerShell"  OR  .\start.ps1 in terminal
-# ─────────────────────────────────────────────────────────────────────────────
+# =============================================================================
+# start.ps1 -- BugBounty Swarm One-Click Launcher
+# =============================================================================
+# Usage: .\start.ps1 in PowerShell
+# =============================================================================
 
 $ErrorActionPreference = "Continue"
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $PSScriptRoot
 
 Write-Host ""
-Write-Host "  ██████╗ ██╗   ██╗ ██████╗ ██████╗  ██████╗ ██╗   ██╗███╗   ██╗████████╗██╗   ██╗" -ForegroundColor Cyan
-Write-Host "  ██╔══██╗██║   ██║██╔════╝ ██╔══██╗██╔═══██╗██║   ██║████╗  ██║╚══██╔══╝╚██╗ ██╔╝" -ForegroundColor Cyan
-Write-Host "  ██████╔╝██║   ██║██║  ███╗██████╔╝██║   ██║██║   ██║██╔██╗ ██║   ██║    ╚████╔╝" -ForegroundColor Cyan
-Write-Host "  ██╔══██╗██║   ██║██║   ██║██╔══██╗██║   ██║██║   ██║██║╚██╗██║   ██║     ╚██╔╝" -ForegroundColor Cyan
-Write-Host "  ██████╔╝╚██████╔╝╚██████╔╝██████╔╝╚██████╔╝╚██████╔╝██║ ╚████║   ██║      ██║" -ForegroundColor Cyan
-Write-Host "  ╚═════╝  ╚═════╝  ╚═════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝   ╚═╝      ╚═╝" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  SWARM AI Security Research Platform — Starting all services..." -ForegroundColor White
+Write-Host "  ===============================================================" -ForegroundColor Cyan
+Write-Host "         BUGBOUNTY SWARM -- ENTERPRISE SECURITY RESEARCH FLEET    " -ForegroundColor Cyan
+Write-Host "  ===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ─── Step 1: Validate .env ───────────────────────────────────────────────────
+# --- Step 1: Validate .env ---------------------------------------------------
 Write-Host "[1/4] Checking .env configuration..." -ForegroundColor Yellow
 
 if (-not (Test-Path ".env")) {
-    Write-Host "  [ERROR] .env file not found! Copy .env.example to .env and fill in GEMINI_API_KEY." -ForegroundColor Red
-    Read-Host "Press Enter to exit"
-    exit 1
+    if (Test-Path ".env.example") {
+        Copy-Item ".env.example" ".env"
+        Write-Host "  [INFO] Created .env from .env.example" -ForegroundColor Green
+    } else {
+        Write-Host "  [ERROR] .env file not found! Please create a .env file." -ForegroundColor Red
+    }
 }
 
-$envContent = Get-Content ".env" -Raw
-$geminiKey = ($envContent -split "`n" | Where-Object { $_ -match "^GEMINI_API_KEY=" } | Select-Object -First 1) -replace "GEMINI_API_KEY=",""
-$geminiKey = $geminiKey.Trim()
+$geminiKey = ""
+if (Test-Path ".env") {
+    $lines = Get-Content ".env"
+    foreach ($line in $lines) {
+        if ($line -match "^GEMINI_API_KEY=(.*)$") {
+            $geminiKey = $matches[1].Trim()
+        }
+    }
+}
 
 if (-not $geminiKey -or $geminiKey -eq "" -or $geminiKey.StartsWith("your_")) {
-    Write-Host "  [WARNING] GEMINI_API_KEY is not set in .env" -ForegroundColor Red
-    Write-Host "  Get your key at: https://aistudio.google.com/app/apikey" -ForegroundColor Yellow
+    Write-Host "  [WARNING] GEMINI_API_KEY is not set in .env (falling back to emulator / offline mode)" -ForegroundColor Yellow
 } else {
-    Write-Host "  [OK] GEMINI_API_KEY found (${geminiKey.Substring(0, [Math]::Min(8, $geminiKey.Length))}...)" -ForegroundColor Green
+    $prefixLen = [Math]::Min(8, $geminiKey.Length)
+    $maskedKey = $geminiKey.Substring(0, $prefixLen) + "..."
+    Write-Host "  [OK] GEMINI_API_KEY found ($maskedKey)" -ForegroundColor Green
 }
 
-# ─── Step 2: Kill any existing processes on ports 5000, 8000, 3000 ───────────
+# --- Step 2: Kill existing processes on ports 5000, 8000, 3000, 3001 ----------
 Write-Host ""
-Write-Host "[2/4] Freeing ports 5000, 8000, 3000..." -ForegroundColor Yellow
+Write-Host "[2/4] Freeing local ports 5000, 8000, 3000, 3001..." -ForegroundColor Yellow
 
-foreach ($port in @(5000, 8000, 3000)) {
+foreach ($port in @(5000, 8000, 3000, 3001)) {
     $procs = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
     if ($procs) {
         foreach ($proc in $procs) {
@@ -57,77 +62,64 @@ foreach ($port in @(5000, 8000, 3000)) {
 
 Start-Sleep -Seconds 1
 
-# ─── Step 3: Start All Services ──────────────────────────────────────────────
+# --- Step 3: Start All Services ----------------------------------------------
 Write-Host ""
-Write-Host "[3/4] Starting services..." -ForegroundColor Yellow
+Write-Host "[3/4] Starting local swarm services..." -ForegroundColor Yellow
 
 # Start Vuln Lab (port 5000)
 Write-Host "  --> Starting Vuln Lab (http://127.0.0.1:5000)..." -ForegroundColor Cyan
-Start-Process -FilePath "powershell" -ArgumentList "-NoExit -Command `"cd '$PSScriptRoot'; python -m vuln_lab.app 2>&1`"" -WindowStyle Minimized
+Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot'; python vuln_lab/app.py" -WindowStyle Minimized
 
 # Start Backend (port 8000)
-Write-Host "  --> Starting Backend API (http://127.0.0.1:8000)..." -ForegroundColor Cyan
-Start-Process -FilePath "powershell" -ArgumentList "-NoExit -Command `"cd '$PSScriptRoot'; python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 2>&1`"" -WindowStyle Minimized
+Write-Host "  --> Starting FastAPI Backend (http://127.0.0.1:8000)..." -ForegroundColor Cyan
+Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot'; python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 --reload" -WindowStyle Minimized
 
-# Start Frontend (port 3000)
+# Start Frontend (port 3000 / 3001)
 Write-Host "  --> Starting Frontend Dashboard (http://localhost:3000)..." -ForegroundColor Cyan
-Start-Process -FilePath "powershell" -ArgumentList "-NoExit -Command `"cd '$PSScriptRoot\frontend'; npm run dev 2>&1`"" -WindowStyle Minimized
+Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\frontend'; npm run dev" -WindowStyle Minimized
 
-# ─── Step 4: Health Check & Open Browser ─────────────────────────────────────
+# --- Step 4: Health Check & Open Browser -------------------------------------
 Write-Host ""
-Write-Host "[4/4] Waiting for services to start (10 seconds)..." -ForegroundColor Yellow
+Write-Host "[4/4] Waiting for services to initialize..." -ForegroundColor Yellow
 
-$maxWait = 30
+$maxWait = 20
 $interval = 2
 $elapsed = 0
 $backendReady = $false
-$frontendReady = $false
+$targetPort = 3000
 
 while ($elapsed -lt $maxWait) {
     Start-Sleep -Seconds $interval
     $elapsed += $interval
     
     try {
-        $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/healthz" -TimeoutSec 1 -ErrorAction SilentlyContinue
+        $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -TimeoutSec 1 -ErrorAction SilentlyContinue
         if ($r.StatusCode -eq 200) { $backendReady = $true }
     } catch { }
-    
-    try {
-        $r = Invoke-WebRequest -Uri "http://localhost:3000" -TimeoutSec 1 -ErrorAction SilentlyContinue
-        if ($r.StatusCode -eq 200) { $frontendReady = $true }
-    } catch { }
-    
-    if ($backendReady -and $frontendReady) { break }
-    Write-Host "  Waiting... ($elapsed/$maxWait s)" -ForegroundColor DarkGray
+
+    # Check port 3000 or 3001 for frontend
+    $conn3000 = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+    $conn3001 = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue
+    if ($conn3000) { $targetPort = 3000; if ($backendReady) { break } }
+    elseif ($conn3001) { $targetPort = 3001; if ($backendReady) { break } }
+
+    Write-Host "  Waiting... ($elapsed/${maxWait}s)" -ForegroundColor DarkGray
 }
 
 Write-Host ""
-Write-Host "  ┌─────────────────────────────────────────────────────────────┐" -ForegroundColor Cyan
-Write-Host "  │              BUGBOUNTY SWARM — READY TO HUNT                │" -ForegroundColor Cyan
-Write-Host "  ├─────────────────────────────────────────────────────────────┤" -ForegroundColor Cyan
-
-if ($backendReady) {
-    Write-Host "  │  Backend API   http://127.0.0.1:8000   [LIVE]              │" -ForegroundColor Green
-} else {
-    Write-Host "  │  Backend API   http://127.0.0.1:8000   [STARTING...]       │" -ForegroundColor Yellow
-}
-
-Write-Host "  │  Vuln Lab      http://127.0.0.1:5000   [STARTED]           │" -ForegroundColor Green
-
-if ($frontendReady) {
-    Write-Host "  │  Dashboard     http://localhost:3000   [LIVE]              │" -ForegroundColor Green
-} else {
-    Write-Host "  │  Dashboard     http://localhost:3000   [STARTING...]       │" -ForegroundColor Yellow
-}
-
-Write-Host "  └─────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+Write-Host "  ===============================================================" -ForegroundColor Cyan
+Write-Host "               BUGBOUNTY SWARM -- READY TO HUNT                  " -ForegroundColor Cyan
+Write-Host "  ===============================================================" -ForegroundColor Cyan
+Write-Host "    Backend API:     http://127.0.0.1:8000/docs" -ForegroundColor Green
+Write-Host "    Vuln Lab:        http://127.0.0.1:5000" -ForegroundColor Green
+Write-Host "    Mission Control: http://localhost:$targetPort" -ForegroundColor Green
+Write-Host "  ===============================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Opening dashboard in browser..." -ForegroundColor White
 
-Start-Sleep -Seconds 2
-Start-Process "http://localhost:3000"
+Start-Sleep -Seconds 1
+Start-Process "http://localhost:$targetPort"
 
 Write-Host ""
-Write-Host "  [DONE] Happy Hunting! The swarm is ready." -ForegroundColor Green
-Write-Host "  Close this window or press Ctrl+C to keep services running in background." -ForegroundColor DarkGray
+Write-Host "  [SUCCESS] All systems active. Happy Hunting!" -ForegroundColor Green
 Write-Host ""
