@@ -149,7 +149,7 @@ class _InMemoryFirestoreClient:
 def get_firestore_client() -> Any:
     settings = get_settings()
 
-    if settings.is_development and not os.environ.get("USE_REAL_FIRESTORE"):
+    if not os.environ.get("USE_REAL_FIRESTORE"):
         logger.info("using_resilient_in_memory_firestore_store")
         return _InMemoryFirestoreClient()
 
@@ -164,6 +164,7 @@ def get_firestore_client() -> Any:
     except Exception as exc:
         logger.warning("firestore_client_init_failed_falling_back", error=str(exc))
         return _InMemoryFirestoreClient()
+
 
 
 # ── Collection References ──────────────────────────────────────────────────────
