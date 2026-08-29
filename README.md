@@ -5,8 +5,8 @@
 
 [![Track](https://img.shields.io/badge/Track-The%20Fortified%20Enterprise%20Fleet-6366F1?style=for-the-badge&logo=googlecloud&logoColor=white)](https://allthingsagentichackathon.devpost.com/)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Google%20Gemini%203.5%20Flash-00ACC1?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
-[![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-100%25%20Live-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs)
-[![Agent Registry](https://img.shields.io/badge/Enterprise%20Registry-6%20Cataloged%20Agents-00C853?style=for-the-badge&logo=fastapi&logoColor=white)](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents)
+[![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-Deployable%20(Serverless)-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](deploy/deploy_cloud_run.sh)
+[![Agent Registry](https://img.shields.io/badge/Enterprise%20Registry-6%20Cataloged%20Agents-00C853?style=for-the-badge&logo=fastapi&logoColor=white)](app/main.py)
 [![Reliability Lab](https://img.shields.io/badge/Reliability%20Lab-Demo--Ready%20(67%25%20Pivot)-8B5CF6?style=for-the-badge&logo=pytest&logoColor=white)](reliability_lab_results/summary.json)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=for-the-badge)](LICENSE)
 
@@ -15,24 +15,26 @@
   Discovers, investigates, validates, and reports real-world API & Web vulnerabilities (BOLA/IDOR, AuthBypass, SSRF, Mass Assignment) with zero hallucinations through multi-persona differential verification loops.
 </p>
 
-[🌐 Live Cloud Run API](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs) • [📋 Agent Registry Catalog](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents) • [⚙️ Zero-Code Config](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/config) • [📊 Benchmark Results](reliability_lab_results/summary.json)
+[⚡ One-Click Windows Spin-Up](start.ps1) • [🐳 Docker Compose](docker-compose.yml) • [☁️ Cloud Run Script](deploy/deploy_cloud_run.sh) • [📊 Benchmark Results](reliability_lab_results/summary.json)
 
 ---
 
 </div>
 
-## 🌟 Executive Overview & Live Judge Quicklinks
+## 🌟 Executive Overview & Quick Links
 
-> [!IMPORTANT]
-> **Production Google Cloud Run Deployment**: The entire BugBounty Swarm backend is deployed and actively serving traffic in `us-central1`. No local setup required for judges and evaluators!
+> [!NOTE]
+> **Cloud-Native & Production-Ready**: BugBounty Swarm is containerized and ready for instant deployment to **Google Cloud Run** via [`deploy/deploy_cloud_run.sh`](deploy/deploy_cloud_run.sh), Docker Compose, or local execution with [`start.ps1`](start.ps1).
 
-| Component | Endpoint / URL | Purpose |
+| Component | Endpoint / Path | Purpose |
 |---|---|---|
-| **📖 Interactive OpenAPI Docs (Swagger UI)** | [`/docs`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs) | Interactive API exploration and live execution testing. |
-| **🗃️ Enterprise Agent Registry** | [`/api/agents`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents) | Institutional catalog of all 6 agents with capabilities, model bindings, and governance rules. |
-| **⚙️ Runtime Zero-Code Config** | [`/api/config`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/config) | Dynamic public configuration consumed at boot by the frontend dashboard. |
-| **📄 OpenAPI Specification** | [`/openapi.json`](https://bugbounty-swarm-backend-339717745624.us-central1.run.app/openapi.json) | Complete OpenAPI 3.1.0 schema specification. |
 | **💻 Local Mission Control Dashboard** | `http://localhost:3000` | Real-time React 18 + Vite visual console with live SSE streaming. |
+| **📖 Interactive OpenAPI Docs (Swagger UI)** | `http://127.0.0.1:8000/docs` | Interactive API exploration and live execution testing. |
+| **🗃️ Enterprise Agent Registry** | `http://127.0.0.1:8000/api/agents` | Institutional catalog of all 6 agents with capabilities, model bindings, and governance rules. |
+| **⚙️ Runtime Zero-Code Config** | `http://127.0.0.1:8000/api/config` | Dynamic configuration consumed at boot by the frontend dashboard. |
+| **📄 OpenAPI Specification** | `http://127.0.0.1:8000/openapi.json` | Complete OpenAPI 3.1.0 schema specification. |
+| **☁️ Cloud Run Deployment Script** | [`deploy/deploy_cloud_run.sh`](deploy/deploy_cloud_run.sh) | Automated Google Cloud Build & Cloud Run serverless deployment. |
+
 
 ---
 
@@ -161,6 +163,16 @@ bash deploy/deploy_cloud_run.sh
 ```
 
 ---
+
+### Option C: Docker Compose (Cross-Platform)
+
+```bash
+docker-compose up --build
+```
+*Spins up the Firestore emulator, FastAPI backend, and multi-agent engine in isolated containers.*
+
+---
+
 
 ## 🛡️ Model Armor: Inline Security Guardrails
 
