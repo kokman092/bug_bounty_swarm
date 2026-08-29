@@ -1,8 +1,75 @@
 import React from "react";
 import { Shield, Cpu, Lock, Activity, Database, CheckCircle, ExternalLink, X } from "lucide-react";
 
+const DEFAULT_AGENTS = [
+  {
+    id: "agent-recon-01",
+    name: "ReconAgent",
+    version: "2.0.0",
+    role: "Attack Surface Discovery & Passive Intelligence",
+    model_binding: "gemini-3.5-flash",
+    description: "Autonomous attack surface discovery engine utilizing passive certificate transparency logs, robots.txt, XML sitemaps, and OpenAPI decomposition.",
+    capabilities: ["Passive robots.txt & XML sitemap parsing", "OpenAPI / Swagger v2/v3 schema decomposition", "Subfinder CT log Certificate Transparency enumeration", "Katana AST route extractor"],
+    governance_scope: "Read-Only / Safe Harbor In-Scope Subdomains"
+  },
+  {
+    id: "agent-attacksurface-02",
+    name: "AttackSurfaceAgent",
+    version: "2.0.0",
+    role: "Parameter Analysis & Boundary Normalization",
+    model_binding: "gemini-3.5-flash",
+    description: "Smart Parameter Normalizer translating symbolic URL template placeholders (e.g. {{order_id}} -> 1) into concrete, testable routes.",
+    capabilities: ["Symbolic-to-numerical route parameter translation", "Burp Suite Base64 XML & HAR 1.2 history traffic ingestion", "Tenant isolation partition matrix mapping"],
+    governance_scope: "Semantic Synthesis / Model Armor Guarded"
+  },
+  {
+    id: "agent-hunter-03",
+    name: "HunterAgent",
+    version: "2.0.0",
+    role: "Multi-Persona Differential Vulnerability Prober",
+    model_binding: "gemini-3.5-flash",
+    description: "Autonomous BOLA, IDOR, SSRF, and AuthBypass hypothesis engine formulating multi-persona access matrices across 4 distinct tenant identities.",
+    capabilities: ["Autonomous BOLA / IDOR hypothesis formulation", "AuthMatrix: 4-persona differential verification (Admin, User A, User B, Anon)", "State-machine parameter tampering sequences"],
+    governance_scope: "Active Differential Probing / Non-Destructive Safe Harbor"
+  },
+  {
+    id: "agent-collector-04",
+    name: "EvidenceCollector",
+    version: "2.0.0",
+    role: "Deterministic Exploit Execution & Proof-of-Concept Capture",
+    model_binding: "Deterministic Engine / SessionVault",
+    description: "High-precision HTTP socket engine capturing differential deltas, response headers, status codes, and executable reproduction curl scripts.",
+    capabilities: ["Multi-Persona Session Vault automated credential swapping", "High-precision HTTP differential delta capture", "PoC curl reproduction script generation"],
+    governance_scope: "Strict Rate-Limited Probe Execution (10 req/s)"
+  },
+  {
+    id: "agent-reviewer-05",
+    name: "ReviewerAgent",
+    version: "2.0.0",
+    role: "False Positive Elimination & CVSS 3.1 Scoring",
+    model_binding: "gemini-3.5-flash",
+    description: "Adaptive Evidence Validator enforcing a strict 0% hallucination gate. Rejects false-positive SPA fallbacks and calculates precise CVSS 3.1 vectors.",
+    capabilities: ["Adaptive Evidence Validation: verifies non-identical bodies", "CVSS 3.1 Base Score & Vector string calculation", "Strict 0% hallucination verification gate"],
+    governance_scope: "Deterministic Verification Gate"
+  },
+  {
+    id: "agent-reporter-06",
+    name: "ReporterAgent",
+    version: "2.0.0",
+    role: "Executive Synthesis & HackerOne Report Generation",
+    model_binding: "gemini-3.5-flash",
+    description: "Compiles verified findings into HackerOne/Bugcrowd compliant markdown reports with step-by-step reproduction curl commands and code remediation.",
+    capabilities: ["HackerOne / Bugcrowd compliant Markdown report synthesis", "Actionable developer remediation & code mitigation advisory", "Burp Suite XML (<items>) export generator"],
+    governance_scope: "Secure Storage & Encrypted Export"
+  }
+];
+
 export function AgentRegistryModal({ isOpen, onClose, registryData }) {
   if (!isOpen) return null;
+
+  const agents = registryData?.agents && registryData.agents.length > 0
+    ? registryData.agents
+    : DEFAULT_AGENTS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -62,49 +129,47 @@ export function AgentRegistryModal({ isOpen, onClose, registryData }) {
 
         {/* Agents Grid */}
         <div className="flex-1 overflow-y-auto pr-1 space-y-3">
-          {registryData?.agents ? (
-            registryData.agents.map((agent) => (
-              <div
-                key={agent.id}
-                className="p-4 rounded-2xl bg-zinc-950/60 border border-white/10 hover:border-indigo-500/30 transition"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-xs font-mono font-bold">
-                      {agent.id}
-                    </div>
-                    <span className="text-sm font-bold text-white">{agent.name}</span>
-                    <span className="text-xs text-zinc-400">({agent.role})</span>
+          {agents.map((agent) => (
+            <div
+              key={agent.id}
+              className="p-4 rounded-2xl bg-zinc-950/60 border border-white/10 hover:border-indigo-500/30 transition"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-xs font-mono font-bold">
+                    {agent.id}
                   </div>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-400 border border-cyan-500/30">
-                    {agent.model_binding}
-                  </span>
+                  <span className="text-sm font-bold text-white">{agent.name}</span>
+                  <span className="text-xs text-zinc-400">({agent.role})</span>
                 </div>
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-400 border border-cyan-500/30">
+                  {agent.model_binding}
+                </span>
+              </div>
 
+              {agent.description && (
                 <p className="text-xs text-zinc-300 mb-3">{agent.description}</p>
+              )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
-                  <div className="p-2 rounded-lg bg-black/40 border border-white/5">
-                    <span className="text-zinc-500 font-bold uppercase text-[9px]">Capabilities: </span>
-                    <span className="text-zinc-300">{agent.capabilities?.join(", ")}</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-black/40 border border-white/5">
-                    <span className="text-zinc-500 font-bold uppercase text-[9px]">Governance Rules: </span>
-                    <span className="text-zinc-300">{agent.governance_rules?.join("; ")}</span>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-zinc-500 font-bold uppercase text-[9px]">Capabilities: </span>
+                  <span className="text-zinc-300">{Array.isArray(agent.capabilities) ? agent.capabilities.join(", ") : agent.capabilities}</span>
+                </div>
+                <div className="p-2 rounded-lg bg-black/40 border border-white/5">
+                  <span className="text-zinc-500 font-bold uppercase text-[9px]">Governance Scope: </span>
+                  <span className="text-zinc-300">{agent.governance_scope || (Array.isArray(agent.governance_rules) ? agent.governance_rules.join("; ") : agent.governance_rules) || "Enterprise Zero-Trust Safe Harbor"}</span>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="p-8 text-center text-zinc-500">Loading catalog from live Cloud Run endpoint...</div>
-          )}
+            </div>
+          ))}
         </div>
 
         {/* Footer */}
         <div className="pt-4 mt-2 border-t border-white/10 flex items-center justify-between text-xs text-zinc-400">
           <span>Live Endpoint: <code className="text-indigo-300">/api/agents</code></span>
           <a
-            href="https://bugbounty-swarm-backend-339717745624.us-central1.run.app/api/agents"
+            href="https://bugbounty-swarm-backend-kva52deviq-uc.a.run.app/api/agents"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-semibold"

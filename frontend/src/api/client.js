@@ -5,7 +5,8 @@
  */
 
 const DEFAULT_KEY = "test_secret_key_12345678901234567890123456789012";
-export const CLOUD_RUN_URL = "https://bugbounty-swarm-backend-339717745624.us-central1.run.app";
+export const CLOUD_RUN_URL = "https://bugbounty-swarm-backend-kva52deviq-uc.a.run.app";
+
 
 function sanitizeKey(key) {
   if (!key) return DEFAULT_KEY;
