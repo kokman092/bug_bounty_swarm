@@ -21,6 +21,8 @@ import urllib.error
 import os
 import sys
 from pathlib import Path
+from flask import Flask, jsonify, request
+
 
 # Add project root to sys.path so direct script execution works
 _root = str(Path(__file__).resolve().parent.parent)
