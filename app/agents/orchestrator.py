@@ -71,11 +71,12 @@ class AgentOrchestrator:
         # Register discovered endpoints into canonical AgentState
         for ep in recon_result.get("endpoints", []):
             self.state.register_endpoint(
-                path=ep.get("path", "/"),
+                endpoint_or_profile=ep.get("path", "/"),
                 method=ep.get("method", "GET"),
                 parameters=ep.get("parameters", []),
                 requires_auth=ep.get("requires_auth", False),
             )
+
         self.state.discovered_assets = recon_result.get("technologies", [])
 
         await self._event_service.emit_event(

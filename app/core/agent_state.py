@@ -36,17 +36,20 @@ class AgentState:
 
     def register_endpoint(
         self,
-        endpoint_or_profile: EndpointProfile | str,
+        endpoint_or_profile: EndpointProfile | str | None = None,
         method: str = "GET",
+        endpoint: str | None = None,
+        path: str | None = None,
         **kwargs: Any,
     ) -> EndpointProfile:
         """Registers or updates an EndpointProfile in AgentState."""
         if isinstance(endpoint_or_profile, EndpointProfile):
             profile = endpoint_or_profile
         else:
+            raw_ep = endpoint_or_profile or endpoint or path or "/"
             profile = EndpointProfile(
                 target=self.target,
-                endpoint=endpoint_or_profile,
+                endpoint=raw_ep,
                 method=method.upper(),
                 **kwargs,
             )
@@ -55,6 +58,7 @@ class AgentState:
         if not any(ep.endpoint == profile.endpoint and ep.method == profile.method for ep in self.endpoint_profiles):
             self.endpoint_profiles.append(profile)
         return profile
+
 
     @staticmethod
     def compute_test_identity(
