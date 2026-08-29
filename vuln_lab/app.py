@@ -18,11 +18,22 @@ from __future__ import annotations
 import sqlite3
 import urllib.request
 import urllib.error
-from flask import Flask, jsonify, request
+import os
+import sys
+from pathlib import Path
 
-from vuln_lab.seed_data import init_db
+# Add project root to sys.path so direct script execution works
+_root = str(Path(__file__).resolve().parent.parent)
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
+try:
+    from vuln_lab.seed_data import init_db
+except ImportError:
+    from seed_data import init_db
 
 app = Flask(__name__)
+
 
 # Connect to in-memory SQLite database
 _conn = sqlite3.connect(":memory:", check_same_thread=False)

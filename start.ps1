@@ -68,11 +68,11 @@ Write-Host "[3/4] Starting local swarm services..." -ForegroundColor Yellow
 
 # Start Vuln Lab (port 5000)
 Write-Host "  --> Starting Vuln Lab (http://127.0.0.1:5000)..." -ForegroundColor Cyan
-Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot'; python vuln_lab/app.py" -WindowStyle Minimized
+Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "`$env:PYTHONPATH='$PSScriptRoot'; cd '$PSScriptRoot'; python vuln_lab/app.py" -WindowStyle Minimized
 
 # Start Backend (port 8000)
 Write-Host "  --> Starting FastAPI Backend (http://127.0.0.1:8000)..." -ForegroundColor Cyan
-Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot'; python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 --reload" -WindowStyle Minimized
+Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "`$env:PYTHONPATH='$PSScriptRoot'; cd '$PSScriptRoot'; python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 --reload" -WindowStyle Minimized
 
 # Start Frontend (port 3000 / 3001)
 Write-Host "  --> Starting Frontend Dashboard (http://localhost:3000)..." -ForegroundColor Cyan
@@ -93,9 +93,10 @@ while ($elapsed -lt $maxWait) {
     $elapsed += $interval
     
     try {
-        $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -TimeoutSec 1 -ErrorAction SilentlyContinue
+        $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 1 -ErrorAction SilentlyContinue
         if ($r.StatusCode -eq 200) { $backendReady = $true }
     } catch { }
+
 
     # Check port 3000 or 3001 for frontend
     $conn3000 = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
