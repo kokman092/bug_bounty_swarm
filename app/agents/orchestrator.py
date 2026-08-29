@@ -346,9 +346,10 @@ class AgentOrchestrator:
                 event_type=event_type,
                 agent_name="ReviewAgent",
                 input_summary=f"Validation Verdict: {verdict.value} (Confidence: {conf_val.value}) for {hypothesis.endpoint} — {len(validated_findings_context)} confirmed so far",
-                payload={"review": review, "evidence": evidence},
+                payload={"status": verdict.value, "verdict": verdict.value, "review": review, "evidence": evidence, "finding_id": finding_id, "title": hypothesis.title, "endpoint": hypothesis.endpoint, "vuln_class": hypothesis.vuln_class.value, "severity": sev_val.value},
                 correlation_id=hypothesis.hypothesis_id,
             )
+
 
 
 

@@ -82,8 +82,9 @@ export function AgentStatusList({ currentPhase, status, events = [], findings = 
   const currentIndex = phases.indexOf(currentPhase);
 
   const iterCount      = events.filter(e => e.event_type === "HYPOTHESIS_PROPOSED").length;
-  const validatedCount = findings.filter(f => f.verdict === "VALIDATED" || f.status === "VALIDATED").length;
-  const rejectedCount  = findings.filter(f => f.verdict === "REJECTED"  || f.status === "REJECTED").length;
+  const validatedCount = findings.filter(f => f.verdict === "VALIDATED" || f.status === "VALIDATED" || f.event_type === "FINDING_VALIDATED" || f.review?.verdict === "VALIDATED").length;
+  const rejectedCount  = findings.filter(f => f.verdict === "REJECTED"  || f.status === "REJECTED"  || f.event_type === "FINDING_REJECTED"  || f.review?.verdict === "REJECTED").length;
+
 
   const getAgentState = (agent) => {
     const idx = phases.indexOf(agent.phaseKey);
