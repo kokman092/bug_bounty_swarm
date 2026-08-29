@@ -46,14 +46,24 @@ class AgentState:
         if isinstance(endpoint_or_profile, EndpointProfile):
             profile = endpoint_or_profile
         else:
+            import dataclasses
             raw_ep = endpoint_or_profile or endpoint or path or "/"
+            auth_req = kwargs.pop("authentication_required", None)
+            if auth_req is None and "requires_auth" in kwargs:
+                auth_req = kwargs.pop("requires_auth")
+
+            valid_fields = {f.name for f in dataclasses.fields(EndpointProfile)}
+            cleaned_kwargs = {k: v for k, v in kwargs.items() if k in valid_fields}
+
             profile = EndpointProfile(
                 target=self.target,
                 endpoint=raw_ep,
                 method=method.upper(),
-                **kwargs,
+                authentication_required=auth_req,
+                **cleaned_kwargs,
             )
         key = f"{profile.method.upper()}:{profile.endpoint}"
+
         self.endpoints[key] = profile
         if not any(ep.endpoint == profile.endpoint and ep.method == profile.method for ep in self.endpoint_profiles):
             self.endpoint_profiles.append(profile)

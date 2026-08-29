@@ -292,33 +292,43 @@ class AgentOrchestrator:
             else:
                 conf_val = Confidence.MEDIUM
 
-            test_res = TestResult(
-                test_name=hypothesis.title,
-                target_url=f"{self.target_url}{hypothesis.endpoint}",
+            step_m = (
+                hypothesis.test_steps[0].method
+                if hypothesis.test_steps
+                else "GET"
+            )
+
+            import uuid
+            finding_id = str(uuid.uuid4())
+            finding = Finding(
+                finding_id=finding_id,
+                investigation_id=self.investigation_id,
+                hypothesis_id=hypothesis.hypothesis_id,
+                title=hypothesis.title,
                 endpoint=hypothesis.endpoint,
-                method=step_m,
                 vuln_class=hypothesis.vuln_class,
                 status=verdict,
                 confidence=conf_val,
                 severity=sev_val,
-                reproducible=verdict == FindingStatus.VALIDATED,
-                evidence_score=10 if verdict == FindingStatus.VALIDATED else 4,
-                observations=[review.get("reason", "")],
-                raw_evidence=evidence,
-                remediation=review.get("remediation_guidance", ""),
+                iterations_used=iteration,
+                evidence_summary=review.get("reason", ""),
+                raw_evidence_inline=evidence,
+                review_feedback=review_feedback,
+                remediation_guidance=review.get("remediation_guidance", ""),
             )
-            val_res = await val_pipeline.validate_signal(test_res)
+            await self._finding_service.save_finding(self.investigation_id, finding)
 
             # Record test execution and finding in canonical AgentState
             self.state.record_test_execution(
                 endpoint=hypothesis.endpoint,
                 method=step_m,
                 vuln_class=hypothesis.vuln_class.value,
-                status=FindingStatus.VALIDATED if val_res.is_confirmed else FindingStatus.REJECTED,
+                status=verdict,
             )
 
             # 5. If validated, add to chain context for future iterations
-            if val_res.is_confirmed:
+            if verdict == FindingStatus.VALIDATED:
+                self.state.confirmed_findings.append(finding)
                 validated_findings_context.append({
                     "vuln_class": hypothesis.vuln_class.value,
                     "title": hypothesis.title,
@@ -328,17 +338,18 @@ class AgentOrchestrator:
                 })
 
             # 6. Emit Verdict Event
-            event_type = EventType.FINDING_VALIDATED if val_res.is_confirmed else EventType.FINDING_REJECTED
+            event_type = EventType.FINDING_VALIDATED if verdict == FindingStatus.VALIDATED else EventType.FINDING_REJECTED
             await self._event_service.emit_event(
                 investigation_id=self.investigation_id,
                 phase=InvestigationPhase.LOOP.value,
                 iteration=iteration,
                 event_type=event_type,
                 agent_name="ReviewAgent",
-                input_summary=f"Validation Verdict: {'CONFIRMED' if val_res.is_confirmed else val_res.status.value} (Score {val_res.confidence_score}/100) for {hypothesis.endpoint} — {len(validated_findings_context)} confirmed so far",
-                payload={"review": review, "validation": {"status": val_res.status.value, "score": val_res.confidence_score, "reasons": val_res.scoring_reasons}},
+                input_summary=f"Validation Verdict: {verdict.value} (Confidence: {conf_val.value}) for {hypothesis.endpoint} — {len(validated_findings_context)} confirmed so far",
+                payload={"review": review, "evidence": evidence},
                 correlation_id=hypothesis.hypothesis_id,
             )
+
 
 
         # ── Phase 4: Final Report Generation ──────────────────────────────────
