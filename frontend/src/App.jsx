@@ -57,7 +57,8 @@ export default function App() {
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showRegistryModal, setShowRegistryModal] = useState(false);
   const [registryData, setRegistryData] = useState(null);
-  const [activeHost, setActiveHost] = useState("Cloud Run Live");
+  const [activeHost, setActiveHost] = useState("Local Daemon (:8000)");
+  const [connectedHostUrl, setConnectedHostUrl] = useState("http://127.0.0.1:8000");
 
   const [targetUrl, setTargetUrl] = useState(() => localStorage.getItem("swarm_target_url") || "http://127.0.0.1:5000");
   const [researcherHandle, setResearcherHandle] = useState(() => localStorage.getItem("swarm_researcher_handle") || "security_researcher");
@@ -99,11 +100,13 @@ export default function App() {
         }
         if (cfg.swarm_version) setSwarmVersion(cfg.swarm_version);
         if (cfg.connectedHost) {
+          setConnectedHostUrl(cfg.connectedHost);
           setActiveHost(cfg.connectedHost.includes("run.app") ? "Cloud Run (us-central1)" : "Local Daemon (:8000)");
         }
       }
       setConfigLoaded(true);
     }).catch(() => setConfigLoaded(true));
+
 
     api.fetchAgentRegistry().then((reg) => {
       if (reg) setRegistryData(reg);
@@ -399,9 +402,9 @@ export default function App() {
               <span>Agent Registry (6)</span>
             </button>
 
-            {/* Cloud Run Live Documentation Link */}
+            {/* Live Backend Documentation Link */}
             <a
-              href="https://bugbounty-swarm-backend-339717745624.us-central1.run.app/docs"
+              href={connectedHostUrl ? `${connectedHostUrl}/docs` : "http://127.0.0.1:8000/docs"}
               target="_blank"
               rel="noreferrer"
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/40 border border-cyan-500/30 text-xs font-mono text-cyan-300 hover:text-cyan-200 transition shadow-sm"
@@ -410,6 +413,7 @@ export default function App() {
               <span>Swagger API Docs</span>
               <ExternalLink className="w-3 h-3 ml-0.5 text-cyan-500" />
             </a>
+
 
             {/* Reset / New Hunt Button */}
             {investigationId && (
