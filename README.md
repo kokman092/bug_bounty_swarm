@@ -4,6 +4,7 @@
 ### Autonomous Enterprise AI Security Research Fleet
 
 [![Track](https://img.shields.io/badge/Track-The%20Fortified%20Enterprise%20Fleet-6366F1?style=for-the-badge&logo=googlecloud&logoColor=white)](https://allthingsagentichackathon.devpost.com/)
+[![Video Demo](https://img.shields.io/badge/Demo%20Video-Watch%20on%20YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/zzmhwZ1HV6U)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Google%20Gemini%203.5%20Flash-00ACC1?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
 [![Cloud Run](https://img.shields.io/badge/Google%20Cloud%20Run-Deployable%20(Serverless)-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](deploy/deploy_cloud_run.sh)
 [![Agent Registry](https://img.shields.io/badge/Enterprise%20Registry-6%20Cataloged%20Agents-00C853?style=for-the-badge&logo=fastapi&logoColor=white)](app/main.py)
@@ -15,7 +16,8 @@
   Discovers, investigates, validates, and reports real-world API & Web vulnerabilities (BOLA/IDOR, AuthBypass, SSRF, Mass Assignment) with zero hallucinations through multi-persona differential verification loops.
 </p>
 
-[⚡ One-Click Windows Spin-Up](start.ps1) • [🐳 Docker Compose](docker-compose.yml) • [☁️ Cloud Run Script](deploy/deploy_cloud_run.sh) • [📊 Benchmark Results](reliability_lab_results/summary.json)
+[🎥 Watch 3-Min Demo Video](https://youtu.be/zzmhwZ1HV6U) • [⚡ One-Click Windows Spin-Up](start.ps1) • [🐳 Docker Compose](docker-compose.yml) • [☁️ Cloud Run Script](deploy/deploy_cloud_run.sh) • [📊 Benchmark Results](reliability_lab_results/summary.json)
+
 
 ---
 
