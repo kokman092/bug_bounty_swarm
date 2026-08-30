@@ -142,10 +142,19 @@ cd bug_bounty_swarm
 # 2. Configure .env with your Gemini API Key
 Copy-Item .env.example .env
 
-# 3. Launch entire ecosystem
+# 3. Launch entire ecosystem (auto-installs requirements.txt & npm packages)
 .\start.ps1
 ```
-*`start.ps1` automatically verifies dependencies, starts the FastAPI backend on port 8000, Vite frontend on port 3000, test vulnerable lab on port 5000, and opens `http://localhost:3000` in your default browser.*
+*`start.ps1` automatically checks and installs Python `requirements.txt` and frontend `node_modules`, frees local ports, starts the FastAPI backend (8000), Vite frontend (3000), Vuln Lab (5000), and opens `http://localhost:3000` in your browser.*
+
+#### Manual Step-by-Step Launch (Linux / macOS / Developers):
+```bash
+pip install -r requirements.txt
+python vuln_lab/app.py &
+python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 &
+cd frontend && npm install && npm run dev
+```
+
 
 ---
 

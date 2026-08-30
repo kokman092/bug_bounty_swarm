@@ -64,11 +64,14 @@ Start-Sleep -Seconds 1
 
 # --- Step 3: Start All Services ----------------------------------------------
 Write-Host ""
-Write-Host "[3/4] Starting local swarm services..." -ForegroundColor Yellow
+# Ensure Python dependencies are installed
+Write-Host "  --> Checking Python dependencies (requirements.txt)..." -ForegroundColor Yellow
+python -m pip install -r "$PSScriptRoot\requirements.txt" --quiet
 
 # Start Vuln Lab (port 5000)
 Write-Host "  --> Starting Vuln Lab (http://127.0.0.1:5000)..." -ForegroundColor Cyan
 Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "`$env:PYTHONPATH='$PSScriptRoot'; cd '$PSScriptRoot'; python vuln_lab/app.py" -WindowStyle Minimized
+
 
 # Start Backend (port 8000)
 Write-Host "  --> Starting FastAPI Backend (http://127.0.0.1:8000)..." -ForegroundColor Cyan
