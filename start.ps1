@@ -74,9 +74,18 @@ Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "`$env
 Write-Host "  --> Starting FastAPI Backend (http://127.0.0.1:8000)..." -ForegroundColor Cyan
 Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "`$env:PYTHONPATH='$PSScriptRoot'; cd '$PSScriptRoot'; python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 --reload" -WindowStyle Minimized
 
+# Ensure node_modules exist
+if (-not (Test-Path "$PSScriptRoot\frontend\node_modules")) {
+    Write-Host "  --> Installing frontend packages (npm install)..." -ForegroundColor Yellow
+    Push-Location "$PSScriptRoot\frontend"
+    npm install --silent
+    Pop-Location
+}
+
 # Start Frontend (port 3000 / 3001)
 Write-Host "  --> Starting Frontend Dashboard (http://localhost:3000)..." -ForegroundColor Cyan
 Start-Process -FilePath "powershell" -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\frontend'; npm run dev" -WindowStyle Minimized
+
 
 # --- Step 4: Health Check & Open Browser -------------------------------------
 Write-Host ""
