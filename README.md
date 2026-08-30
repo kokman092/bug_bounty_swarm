@@ -149,11 +149,17 @@ Copy-Item .env.example .env
 
 #### Manual Step-by-Step Launch (Linux / macOS / Developers):
 ```bash
-pip install -r requirements.txt
-python vuln_lab/app.py &
-python -m uvicorn app.main:app --port 8000 --host 0.0.0.0 &
+# 1. Install dependencies
+pip3 install -r requirements.txt
+
+# 2. Start services in background
+python3 vuln_lab/app.py &
+python3 -m uvicorn app.main:app --port 8000 --host 0.0.0.0 &
+
+# 3. Start Frontend Dashboard
 cd frontend && npm install && npm run dev
 ```
+
 
 
 ---
